@@ -10,6 +10,16 @@ interface RealtimePageWrapperProps {
   refreshOnScoreboard?: boolean;
 }
 
+function ResultUpdatesListener({ onUpdate }: { onUpdate: () => void }) {
+  useResultUpdates(onUpdate);
+  return null;
+}
+
+function ScoreboardUpdatesListener({ onUpdate }: { onUpdate: () => void }) {
+  useScoreboardUpdates(onUpdate);
+  return null;
+}
+
 export function RealtimePageWrapper({
   children,
   refreshOnResults = false,
@@ -21,15 +31,13 @@ export function RealtimePageWrapper({
     router.refresh();
   };
 
-  if (refreshOnResults) {
-    useResultUpdates(handleUpdate);
-  }
-
-  if (refreshOnScoreboard) {
-    useScoreboardUpdates(handleUpdate);
-  }
-
-  return <>{children}</>;
+  return (
+    <>
+      {refreshOnResults && <ResultUpdatesListener onUpdate={handleUpdate} />}
+      {refreshOnScoreboard && <ScoreboardUpdatesListener onUpdate={handleUpdate} />}
+      {children}
+    </>
+  );
 }
 
 

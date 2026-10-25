@@ -120,7 +120,7 @@ export function TeamStudentList({ students, updateAction, deleteAction, isRegist
       {searchQuery && (
         <div className="text-sm text-white/60 px-1">
           {filteredStudents.length === 0 ? (
-            <span>No students found matching "{searchQuery}"</span>
+            <span>No students found matching &quot;{searchQuery}&quot;</span>
           ) : (
             <span>
               Found {filteredStudents.length} of {students.length} student{students.length !== 1 ? 's' : ''}

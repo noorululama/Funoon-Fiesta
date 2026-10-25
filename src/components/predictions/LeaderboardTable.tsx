@@ -11,6 +11,17 @@ import { cn } from "@/lib/utils";
 export function LeaderboardTable() {
     const [scores, setScores] = useState<UserScore[]>([]);
 
+    const fetchLeaderboard = async () => {
+        try {
+            const res = await fetch("/api/predictions/leaderboard");
+            if (res.ok) {
+                setScores(await res.json());
+            }
+        } catch (error) {
+            console.error("Failed to fetch leaderboard", error);
+        }
+    };
+
     useEffect(() => {
         fetchLeaderboard();
 
@@ -24,17 +35,6 @@ export function LeaderboardTable() {
             channel.unsubscribe();
         };
     }, []);
-
-    const fetchLeaderboard = async () => {
-        try {
-            const res = await fetch("/api/predictions/leaderboard");
-            if (res.ok) {
-                setScores(await res.json());
-            }
-        } catch (error) {
-            console.error("Failed to fetch leaderboard", error);
-        }
-    };
 
     const topThree = scores.slice(0, 3);
     const rest = scores.slice(3);

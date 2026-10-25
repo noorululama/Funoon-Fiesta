@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
+import path from "path";
 import withPWA from "@ducanh2912/next-pwa";
 
-const nextConfig = {
+const nextConfig: NextConfig = {
   reactStrictMode: true,
+  outputFileTracingRoot: path.resolve(__dirname),
 
 
   images: {

@@ -64,16 +64,16 @@ function UsersManager() {
     const [search, setSearch] = useState("");
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        loadUsers();
-    }, []);
-
     const loadUsers = async () => {
         setLoading(true);
         const data = await getFestoryAdminUsers();
         setUsers(data);
         setLoading(false);
     };
+
+    useEffect(() => {
+        loadUsers();
+    }, []);
 
     const handleToggleBan = async (userId: string) => {
         const res = await toggleFestoryUserBan(userId);
@@ -198,16 +198,16 @@ function PostsManager() {
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        loadPosts();
-    }, []);
-
     const loadPosts = async () => {
         setLoading(true);
         const data = await getFestoryAdminPosts();
         setPosts(data);
         setLoading(false);
     };
+
+    useEffect(() => {
+        loadPosts();
+    }, []);
 
     const handleDelete = async (postId: string) => {
         if (!confirm("Are you sure you want to delete this post? This cannot be undone.")) return;
