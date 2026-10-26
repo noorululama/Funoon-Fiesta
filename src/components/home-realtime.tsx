@@ -41,32 +41,34 @@ export function HomeRealtime({ teams: initialTeams, liveScores: initialLiveScore
       {/* Engagement Section */}
       <HomeEngagementSection />
 
-      {/* Team Leaders Section */}
-      <section className="bg-white py-12 sm:py-16 md:py-20 relative overflow-hidden">
-        {/* Decorative Sun - Top Left */}
-        <div className="absolute top-10 left-0 -translate-x-1/2 -translate-y-1/4 w-32 h-32 md:w-64 md:h-64 opacity-20 animate-[sun-rotate_60s_linear_infinite] pointer-events-none z-20">
-          <Image
-            src="/img/assets/sun.webp"
-            alt="Decorative Sun"
-            fill
-            className="object-contain"
-          />
-        </div>
+      {/* Team Leaders Section (Temporarily Disabled) */}
+      {false && (
+        <section className="bg-white py-12 sm:py-16 md:py-20 relative overflow-hidden">
+          {/* Decorative Sun - Top Left */}
+          <div className="absolute top-10 left-0 -translate-x-1/2 -translate-y-1/4 w-32 h-32 md:w-64 md:h-64 opacity-20 animate-[sun-rotate_60s_linear_infinite] pointer-events-none z-20">
+            <Image
+              src="/img/assets/sun.webp"
+              alt="Decorative Sun"
+              fill
+              className="object-contain"
+            />
+          </div>
 
-        {/* Decorative Srang - Bottom Right */}
-        <div className="absolute bottom-0 right-0 w-40 h-40 md:w-96 md:h-96 opacity-90 translate-y-1/6 translate-x-1/6 pointer-events-none z-20">
-          <Image
-            src="/img/assets/srang.png"
-            alt="Decorative Srang"
-            fill
-            className="object-contain"
-          />
-        </div>
+          {/* Decorative Srang - Bottom Right */}
+          <div className="absolute bottom-0 right-0 w-40 h-40 md:w-96 md:h-96 opacity-90 translate-y-1/6 translate-x-1/6 pointer-events-none z-20">
+            <Image
+              src="/img/assets/srang.png"
+              alt="Decorative Srang"
+              fill
+              className="object-contain"
+            />
+          </div>
 
-        <div className="container mx-auto max-w-7xl px-4 sm:px-5 md:px-8 relative z-10">
-          <TeamLeadersShowcase teams={initialTeams} />
-        </div>
-      </section>
+          <div className="container mx-auto max-w-7xl px-4 sm:px-5 md:px-8 relative z-10">
+            <TeamLeadersShowcase teams={initialTeams} />
+          </div>
+        </section>
+      )}
 
       {/* About Funoon Fiesta Section */}
       <AboutSection />
