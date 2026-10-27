@@ -40,16 +40,36 @@ async function seedCollection(
 
 async function updateTeamNames() {
   await connectDB();
-  // Update existing teams with new names and colors from defaultTeams
-  // NOTE: This does NOT update passwords to avoid overwriting user-changed passwords with defaults
+  // Only set default name and color if not already set,
+  // so that custom colors or names configured in the admin panel are never overwritten.
   for (const team of defaultTeams) {
     await TeamModel.updateOne(
-      { id: team.id },
-      { $set: { name: team.name, color: team.color } },
+      {
+        id: team.id,
+        $or: [
+          { color: { $exists: false } },
+          { color: null },
+          { color: "" },
+        ],
+      },
+      { $set: { color: team.color } },
+      { upsert: false }
+    );
+    await TeamModel.updateOne(
+      {
+        id: team.id,
+        $or: [
+          { name: { $exists: false } },
+          { name: null },
+          { name: "" },
+        ],
+      },
+      { $set: { name: team.name } },
       { upsert: false }
     );
   }
 }
+
 
 async function seedDatabase() {
   await connectDB();

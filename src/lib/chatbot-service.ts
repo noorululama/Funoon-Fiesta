@@ -6,7 +6,17 @@ import {
 } from "@/lib/models";
 import { connectDB } from "@/lib/db";
 
-export async function getFestDataForAI() {
+// In-memory cache for ultra-fast spot replies (25-second freshness)
+let cachedFestData: string | null = null;
+let lastCacheTime = 0;
+const CACHE_TTL_MS = 25000;
+
+export async function getFestDataForAI(forceFresh = false) {
+  const now = Date.now();
+  if (!forceFresh && cachedFestData && now - lastCacheTime < CACHE_TTL_MS) {
+    return cachedFestData;
+  }
+
   await connectDB();
 
   // Fetch data in parallel
@@ -65,5 +75,7 @@ export async function getFestDataForAI() {
     context += `- ${s.name} (Chest: ${s.chest_no}, Team: ${tName})\n`;
   });
 
+  cachedFestData = context;
+  lastCacheTime = now;
   return context;
 }

@@ -12,7 +12,7 @@ export async function POST(req: Request) {
             );
         }
 
-        const { message } = await req.json();
+        const { message, mode = "chat" } = await req.json();
         if (!message) {
             return NextResponse.json(
                 { error: "Message is required" },
@@ -23,43 +23,87 @@ export async function POST(req: Request) {
         // Fetch the latest data from the database
         const festData = await getFestDataForAI();
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        // Using gemini-1.5-flash as it is fast and efficient for this use case
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const isCharacterMode = mode === "character";
 
         const systemPrompt = `
-You are the official AI Assistant for "Funoon Fiesta", a school arts fest.
-Your goal is to help users (students, parents, teachers) by answering questions based on the provided data.
+You are the official ${isCharacterMode ? "3D Live AI Character Host" : "AI Assistant"} for "Funoon Fiesta 2026".
 
-EVENT INFORMATION:
-FUNOON FIESTA is an engaging arts festival hosted by the Noorul Ulama Students Association at Jumia Nooriyya Arabbiya. This celebration of creativity showcases the diverse talents of students through a variety of artistic expressions. The festival aims to foster a love for the arts, provide a platform for young artists to shine, and bring the community together to experience the vibrant cultural atmosphere created by the students.
-
-For a hundred years, the Malabar coast has carried the rhythm of a community shaped by knowledge, faith, and artistic expression. Funoon Fiesta 2025-26 is the creative bridge that connects this century-long legacy to a new generation. Rooted in the centenary of Samastha Kerala Jamiyyathul Ulama, this edition proudly carries the theme "Shathakam Saakshi" – a tribute to the scholars, institutions, and countless individuals who illuminated our path.
-
-DATA CONTEXT:
+FESTIVAL DATABASE CONTEXT:
 ${festData}
 
-GUIDELINES:
-1. **Language Support**: You must support both Malayalam and English. Detect the language of the user's query and respond in the same language. If the user asks in Manglish (Malayalam written in English), reply in Manglish or English as appropriate.
-2. **Read-Only**: You cannot modify any data. You only answer based on the provided context.
-3. **Politeness**: Be helpful, polite, and enthusiastic about the fest.
-4. **Accuracy**: Only answer based on the provided "DATA CONTEXT". If you don't know the answer or the data is missing, say so. Do not hallucinate results.
-5. **Privacy**: Do not reveal any passwords or internal IDs if they accidentally appear (though they shouldn't).
-6. **Formatting**: Use Markdown for better readability (bold for names, lists for results).
+${isCharacterMode ? `
+CHARACTER PERSONA & LANGUAGE REQUIREMENTS (AI CHARACTER HOST):
+1. **Simple, Clear Conversational Malayalam (ലളിതമായ സംസാരശൈലി)**:
+   - Speak in simple, clear, and natural everyday Malayalam (ലളിതമായ സംസാര ഭാഷ) so anyone can easily understand.
+   - Strictly avoid overly heavy, literary, or archaic Malayalam terms (കഠിനമായ പുസ്തക ഭാഷ ഒഴിവാക്കുക).
+   - Use short, crisp sentences with proper commas and full stops so the male voice speaks with perfect clarity, natural pauses, and distinct pronunciation.
+   - Do NOT use markdown stars (**), hashes (#), emojis, or symbols, as this is converted directly into spoken audio.
+2. **Concise Spoken Voice (2 to 4 Sentences Maximum)**:
+   - You are a live 3D male stage presenter delivering quick spot announcements.
+   - Keep answers immediate, engaging, and brief (2 to 4 sentences).
+   - If asked for programs or categories, summarize the main highlights briefly (e.g. mention General, Category A, B, C and 2-3 popular events) and invite them to check the Chat section for complete directories.
+   - Even if the user asks in English or Manglish, reply in simple Malayalam.
+` : `
+ASSISTANT PERSONA & LANGUAGE REQUIREMENTS (AI CHAT):
+1. **Multilingual & Spot Accuracy**:
+   - Detect the language of the user's query and respond in the same language (Malayalam for Malayalam/Manglish, English for English).
+   - Format responses clearly with concise markdown bullet points and bold highlights.
+   - Give spot-on, instant, direct answers without unnecessary introductory filler.
+`}
+
+CRITICAL INSTRUCTION - DIRECT ANSWERS ONLY (NO REPETITIVE INTRODUCTIONS):
+- **NEVER include repetitive introductory greetings, welcomes, or festival preambles** (e.g., do NOT start with "Welcome to Funoon Fiesta...", "Under the inspiring theme of Shathakam Saakshi...", "അസ്സലാമു അലൈക്കും... ഫുനൂൻ ഫിയസ്റ്റയിലേക്ക് സ്വാഗതം...", or other generic festival intro filler).
+- **Answer the user's specific question DIRECTLY and IMMEDIATELY from the very first sentence**.
+- Only explain festival history or theme if the user explicitly asks "What is Funoon Fiesta?" or "Tell me about the festival".
+- Provide the exact facts, points, standings, or answers without boilerplate chatter.
+
+GENERAL GUIDELINES:
+1. **Accuracy**: Answer strictly based on the provided "FESTIVAL DATABASE CONTEXT". If an event result or detail is not yet published in the context, state directly that it has not been published yet. Do not invent or hallucinate results.
+2. **Privacy**: Never disclose internal IDs, passwords, or administrative tokens.
 
 User Query: ${message}
-    `;
+`;
 
-        const result = await model.generateContent(systemPrompt);
-        const response = result.response;
-        const text = response.text();
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const candidateModels = [
+            "gemini-flash-lite-latest",
+            "gemini-flash-latest",
+            "gemini-2.5-flash-lite"
+        ];
+
+        let text = "";
+        let lastError: unknown = null;
+
+        for (const modelName of candidateModels) {
+            try {
+                const model = genAI.getGenerativeModel({
+                    model: modelName,
+                    generationConfig: {
+                        temperature: 0.25,
+                        maxOutputTokens: isCharacterMode ? 220 : 650,
+                    }
+                });
+                const result = await model.generateContent(systemPrompt);
+                text = result.response.text();
+                if (text) break;
+            } catch (err) {
+                lastError = err;
+                console.warn(`Model ${modelName} failed, attempting fallback...`);
+            }
+        }
+
+        if (!text) {
+            throw lastError || new Error("All AI models failed to respond");
+        }
 
         return NextResponse.json({ response: text });
     } catch (error) {
         console.error("Chatbot Error:", error);
         return NextResponse.json(
-            { error: "Failed to process request" },
+            { error: "Failed to process request. Please try again." },
             { status: 500 }
         );
     }
 }
+
+

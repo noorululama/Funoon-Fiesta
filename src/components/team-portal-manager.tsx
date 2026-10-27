@@ -65,6 +65,7 @@ export const TeamPortalManager = React.memo(function TeamPortalManager({
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [activeView, setActiveView] = useState<"teams" | "students" | "registrations" | null>(null);
   const [editingTeam, setEditingTeam] = useState<PortalTeam | null>(null);
+  const [editThemeColor, setEditThemeColor] = useState<string>("#0ea5e9");
   const [viewingTeam, setViewingTeam] = useState<PortalTeam | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [registrationGroupBy, setRegistrationGroupBy] = useState<"all" | "program" | "team">("all");
@@ -286,7 +287,13 @@ export const TeamPortalManager = React.memo(function TeamPortalManager({
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <p className="text-xs text-white/50">ID: {team.id}</p>
-                        <h3 className="font-semibold text-white mt-1">{team.teamName}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span
+                            className="w-3.5 h-3.5 rounded-full border border-white/20 shrink-0 shadow-sm"
+                            style={{ backgroundColor: team.themeColor || "#0ea5e9" }}
+                          />
+                          <h3 className="font-semibold text-white">{team.teamName}</h3>
+                        </div>
                         <p className="text-sm text-white/70 mt-1">Leader: {team.leaderName}</p>
                         <div className="flex gap-4 mt-2 text-xs text-white/60">
                           <span>Students: {stats.studentCount}</span>
@@ -306,7 +313,10 @@ export const TeamPortalManager = React.memo(function TeamPortalManager({
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => setEditingTeam(team)}
+                          onClick={() => {
+                            setEditingTeam(team);
+                            setEditThemeColor(team.themeColor || "#0ea5e9");
+                          }}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -622,12 +632,22 @@ export const TeamPortalManager = React.memo(function TeamPortalManager({
               <label className="text-sm font-semibold text-white/70 mb-2 block">
                 Theme Color
               </label>
-              <Input
-                name="themeColor"
-                type="text"
-                defaultValue={editingTeam.themeColor || "#0ea5e9"}
-                placeholder="#0ea5e9"
-              />
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={editThemeColor}
+                  onChange={(e) => setEditThemeColor(e.target.value)}
+                  className="w-10 h-10 rounded-xl cursor-pointer border border-white/20 bg-transparent p-1 shrink-0"
+                />
+                <Input
+                  name="themeColor"
+                  type="text"
+                  value={editThemeColor}
+                  onChange={(e) => setEditThemeColor(e.target.value)}
+                  placeholder="#0ea5e9"
+                  className="font-mono flex-1"
+                />
+              </div>
             </div>
             <SubmitButton
               onClick={() => {
