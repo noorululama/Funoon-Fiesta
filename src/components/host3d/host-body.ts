@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { fbm3, smoothstep } from "./host-math";
 import { loftGeometry, sampleLevels, tubeGeometry, type LoftLevel } from "./host-geometry";
-import { makeClothBumpTexture } from "./host-textures";
+import { makeClothBumpTexture, makeSkinDetailMaps } from "./host-textures";
 import { SKIN_COLOR } from "./host-head";
 
 /**
@@ -203,25 +203,32 @@ export function buildBody({ detail, quality }: BodyOptions): BodyBuild {
   root.name = "Body";
 
   const bump = makeClothBumpTexture([1, 1]);
+  const skinMaps = makeSkinDetailMaps([3, 3]);
   const clothMaterial = new THREE.MeshPhysicalMaterial({
     color: 0xfbf9f4,
-    roughness: 0.9,
+    roughness: 0.82,
     metalness: 0,
-    sheen: 0.8,
-    sheenRoughness: 0.5,
+    sheen: 0.68,
+    sheenRoughness: 0.58,
     sheenColor: new THREE.Color(0xffffff),
     bumpMap: bump,
-    bumpScale: 0.5,
+    bumpScale: 0.12,
     side: THREE.DoubleSide,
   });
   const skin = new THREE.MeshPhysicalMaterial({
     color: SKIN_COLOR,
-    roughness: 0.6,
+    roughness: 0.7,
+    map: skinMaps.color,
+    bumpMap: skinMaps.bump,
+    bumpScale: 0.0013,
+    roughnessMap: skinMaps.roughness,
     sheen: 0.3,
-    sheenRoughness: 0.5,
+    sheenRoughness: 0.62,
     sheenColor: new THREE.Color(0xffc9a0),
+    clearcoat: 0.02,
+    clearcoatRoughness: 0.65,
   });
-  const pearl = new THREE.MeshStandardMaterial({ color: 0xf1eee6, roughness: 0.28, metalness: 0.1 });
+  const pearl = new THREE.MeshStandardMaterial({ color: 0xf5f2eb, roughness: 0.72 });
   const stitch = new THREE.MeshStandardMaterial({ color: 0xe4e0d6, roughness: 0.9 });
   const leather = new THREE.MeshStandardMaterial({ color: 0x4a2e1e, roughness: 0.55 });
   const sole = new THREE.MeshStandardMaterial({ color: 0x24160d, roughness: 0.8 });
@@ -277,7 +284,6 @@ export function buildBody({ detail, quality }: BodyOptions): BodyBuild {
   collarRim.rotation.x = Math.PI / 2;
   collarRim.position.set(0, 1.506 - BODY.spineY, -0.004);
   spine.add(collarRim);
-
   /* Button placket with stitched edges, three pearl buttons */
   const frontPts = (x: number, y0: number, y1: number, n: number, lift: number) => {
     const pts: THREE.Vector3[] = [];
@@ -315,44 +321,10 @@ export function buildBody({ detail, quality }: BodyOptions): BodyBuild {
     );
   }
   for (const by of [1.415, 1.365, 1.315]) {
-    const b = new THREE.Mesh(new THREE.SphereGeometry(0.0046, 14, 10), pearl);
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.0038, 14, 10), pearl);
     b.position.set(0, by - BODY.spineY, surfaceZ(0, by) + 0.0055);
     b.scale.z = 0.6;
     spine.add(b);
-  }
-
-  /* Chest pocket outline on the wearer's left */
-  {
-    const px0 = 0.06;
-    const px1 = 0.132;
-    const py0 = 1.205;
-    const py1 = 1.272;
-    const pts: THREE.Vector3[] = [];
-    const per = 10;
-    const edge = (xa: number, ya: number, xb: number, yb: number) => {
-      for (let i = 0; i < per; i++) {
-        const t = i / per;
-        const x = xa + (xb - xa) * t;
-        const y = ya + (yb - ya) * t;
-        pts.push(new THREE.Vector3(x, y - BODY.spineY, surfaceZ(x, y) + 0.004));
-      }
-    };
-    edge(px0, py1, px1, py1);
-    edge(px1, py1, px1, py0);
-    edge(px1, py0, px0, py0);
-    edge(px0, py0, px0, py1);
-    spine.add(
-      new THREE.Mesh(
-        tubeGeometry(pts, {
-          radial: 6,
-          closed: true,
-          outward: () => front,
-          width: () => 0.0009,
-          thickness: () => 0.0009,
-        }),
-        stitch
-      )
-    );
   }
 
   /* Neck (follows part of the head turn) */

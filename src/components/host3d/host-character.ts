@@ -53,8 +53,8 @@ export function createHostCharacter(opts: HostCharacterOptions = {}): HostCharac
   head.group.add(face.group);
   const turban = buildTurban(quality);
   head.group.add(turban.group);
-  // Slightly enlarged head: friendlier, more legible at small sizes.
-  head.group.scale.setScalar(1.1);
+  // Keep adult head-to-body proportions close to life size while preserving clear facial detail.
+  head.group.scale.setScalar(1.03);
 
   const setMorph = (index: number, v: number) => {
     for (const m of head.morphMeshes) {

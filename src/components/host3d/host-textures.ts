@@ -50,6 +50,56 @@ export function makeClothBumpTexture(repeat: [number, number] = [10, 10]) {
   return finish(canvas, { repeat });
 }
 
+/** Fine, low-contrast skin colour, pore and roughness maps for close views. */
+export function makeSkinDetailMaps(repeat: [number, number] = [2.5, 2.5]) {
+  const size = 512;
+  const { canvas: colorCanvas, ctx: colorCtx } = makeCanvas(size, size);
+  const { canvas: bumpCanvas, ctx: bumpCtx } = makeCanvas(size, size);
+  const { canvas: roughnessCanvas, ctx: roughnessCtx } = makeCanvas(size, size);
+  const rng = makeRng(37);
+
+  // A restrained warm noise map keeps skin from reading as a flat plastic tint.
+  const colorPixels = colorCtx.createImageData(size, size);
+  for (let i = 0; i < colorPixels.data.length; i += 4) {
+    const value = 247 + Math.floor(rng() * 9);
+    colorPixels.data[i] = value;
+    colorPixels.data[i + 1] = value;
+    colorPixels.data[i + 2] = value - 1;
+    colorPixels.data[i + 3] = 255;
+  }
+  colorCtx.putImageData(colorPixels, 0, 0);
+
+  bumpCtx.fillStyle = "#808080";
+  bumpCtx.fillRect(0, 0, size, size);
+  roughnessCtx.fillStyle = "#dddddd";
+  roughnessCtx.fillRect(0, 0, size, size);
+
+  // Tiny, soft pore marks stay below the silhouette and do not create a speckled look.
+  const pores = 11_000;
+  for (let i = 0; i < pores; i++) {
+    const x = rng() * size;
+    const y = rng() * size;
+    const radius = 0.35 + rng() * 0.75;
+    const depth = 78 + Math.floor(rng() * 35);
+    bumpCtx.fillStyle = `rgba(${depth},${depth},${depth},${0.2 + rng() * 0.2})`;
+    bumpCtx.beginPath();
+    bumpCtx.arc(x, y, radius, 0, Math.PI * 2);
+    bumpCtx.fill();
+
+    const roughness = 224 + Math.floor(rng() * 25);
+    roughnessCtx.fillStyle = `rgba(${roughness},${roughness},${roughness},0.18)`;
+    roughnessCtx.beginPath();
+    roughnessCtx.arc(x, y, radius * 1.3, 0, Math.PI * 2);
+    roughnessCtx.fill();
+  }
+
+  return {
+    color: finish(colorCanvas, { srgb: true, repeat }),
+    bump: finish(bumpCanvas, { repeat }),
+    roughness: finish(roughnessCanvas, { repeat }),
+  };
+}
+
 /** Soft vertical hair-strand map used for both colour variation and bump. */
 export function makeHairTexture(repeat: [number, number] = [5, 4]) {
   const w = 256;

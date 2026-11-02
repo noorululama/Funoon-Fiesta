@@ -51,7 +51,7 @@ interface CameraRig {
 const CAMERAS: Record<"compact" | HostViewMode, CameraRig> = {
   compact: { pos: new THREE.Vector3(0, 1.645, 0.86), look: new THREE.Vector3(0, 1.64, 0), fov: 24 },
   portrait: { pos: new THREE.Vector3(0, 1.62, 1.08), look: new THREE.Vector3(0, 1.57, 0), fov: 34 },
-  full: { pos: new THREE.Vector3(0, 1.0, 2.7), look: new THREE.Vector3(0, 0.93, 0), fov: 36 },
+  full: { pos: new THREE.Vector3(0, 1.0, 3.05), look: new THREE.Vector3(0, 0.93, 0), fov: 35 },
 };
 
 export class HostScene {
@@ -118,7 +118,7 @@ export class HostScene {
     this.renderer.setPixelRatio(Math.min(dpr, this.compact ? 2 : this.lowPower ? 1.25 : 1.75));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.12;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
@@ -126,14 +126,14 @@ export class HostScene {
     this.pmrem = new THREE.PMREMGenerator(this.renderer);
     this.envTarget = this.pmrem.fromScene(new RoomEnvironment(), 0.04);
     this.scene.environment = this.envTarget.texture;
-    this.scene.environmentIntensity = 0.55;
+    this.scene.environmentIntensity = 0.68;
 
     /* Lights: warm key, cool fill, gold rim, green fest accent */
-    this.scene.add(new THREE.AmbientLight(0xfff8f0, 0.55));
-    this.keyLight = new THREE.DirectionalLight(0xfffaef, 2.3);
-    this.keyLight.position.set(1.5, 2.9, 2.4);
+    this.scene.add(new THREE.AmbientLight(0xfff8f0, 0.42));
+    this.keyLight = new THREE.DirectionalLight(0xfff5e8, 2.5);
+    this.keyLight.position.set(1.2, 3.1, 2.6);
     this.keyLight.castShadow = shadows;
-    this.keyLight.shadow.mapSize.set(1024, 1024);
+    this.keyLight.shadow.mapSize.set(this.lowPower ? 1024 : 1536, this.lowPower ? 1024 : 1536);
     this.keyLight.shadow.camera.near = 0.5;
     this.keyLight.shadow.camera.far = 8;
     this.keyLight.shadow.camera.left = -1.4;
@@ -143,11 +143,11 @@ export class HostScene {
     this.keyLight.shadow.bias = -0.0004;
     this.keyLight.shadow.normalBias = 0.01;
     this.scene.add(this.keyLight);
-    const fill = new THREE.DirectionalLight(0xdce7fa, 0.9);
-    fill.position.set(-2, 1.8, 1.8);
+    const fill = new THREE.DirectionalLight(0xdce7fa, 0.85);
+    fill.position.set(-2.1, 1.9, 2.0);
     this.scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffd580, 2.2);
-    rim.position.set(1.2, 2.2, -2);
+    const rim = new THREE.DirectionalLight(0xffd58c, 2.4);
+    rim.position.set(1.35, 2.5, -2.2);
     this.scene.add(rim);
     const green = new THREE.PointLight(0x70b040, 1.3, 5);
     green.position.set(-1.3, 1.6, -1.2);
@@ -303,7 +303,18 @@ export class HostScene {
   /* ── internals ──────────────────────────────────────────────────── */
 
   private currentCameraRig(): CameraRig {
-    return CAMERAS[this.compact ? "compact" : this.viewMode];
+    const base = CAMERAS[this.compact ? "compact" : this.viewMode];
+    // On narrow mobile portrait screens (aspect < 0.85), slightly lower the camera look target
+    // so the character's face and turban sit cleanly in the upper 55% of the viewport,
+    // leaving the lower half free for subtitles without hiding the character's face.
+    if (this.viewMode === "portrait" && !this.compact && this.camera && this.camera.aspect < 0.85) {
+      return {
+        pos: new THREE.Vector3(0, 1.62, 1.05),
+        look: new THREE.Vector3(0, 1.50, 0),
+        fov: 34,
+      };
+    }
+    return base;
   }
 
   private bindEvents(canvas: HTMLCanvasElement) {

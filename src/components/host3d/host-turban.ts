@@ -151,7 +151,7 @@ function buildWraps(baseMaterial: THREE.MeshPhysicalMaterial, hi: boolean) {
         return w.thick * (1 + 0.14 * fbm3(Math.sin(a) * 2.4, Math.cos(a) * 2.4 + w.seed, 4.2));
       },
       uvScale: [14, 2],
-      edgeShade: 0.3,
+      edgeShade: 0.22,
     });
     geos.push(g);
   }
@@ -253,7 +253,7 @@ export function buildTurban(quality: "high" | "low" = "high"): TurbanBuild {
     sheenRoughness: 0.55,
     sheenColor: new THREE.Color(0xffffff),
     bumpMap: bump,
-    bumpScale: 0.6,
+    bumpScale: 0.22,
     side: THREE.DoubleSide,
   });
 

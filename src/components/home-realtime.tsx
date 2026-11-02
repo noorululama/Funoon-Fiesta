@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { FestieHeroSection } from "@/components/FestieHeroSection";
+import { StatsTapeSection } from "@/components/StatsTapeSection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LiveScorePulse } from "@/components/live-score-pulse";
@@ -28,8 +29,17 @@ export function HomeRealtime({ teams: initialTeams, liveScores: initialLiveScore
 
   return (
     <main className="space-y-16">
-      {/* Festie Hero Section */}
-      <FestieHeroSection />
+      {/* Hero + festival numbers share one white block (no gap between them) */}
+      <div className="bg-white">
+        <FestieHeroSection />
+        <StatsTapeSection
+          stats={[
+            { value: 950, suffix: "+", label: "Participants" },
+            { value: initialTeams.length || 6, label: "Team" },
+            { value: 200, suffix: "+", label: "Programmes" },
+          ]}
+        />
+      </div>
 
       {/* Live Score Pulse Section */}
       <section className="bg-white py-12 sm:py-16 md:py-20">

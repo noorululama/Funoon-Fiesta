@@ -10,7 +10,7 @@ import { tubeGeometry } from "./host-geometry";
 
 /* ── Eyes ────────────────────────────────────────────────────────────── */
 
-const EYE_R = 0.0142;
+const EYE_R = 0.0128;
 /** Open-eye margin angles (radians from the +Y / −Y pole of the eyeball). */
 const UPPER_OPEN = 1.09;
 const LOWER_OPEN = 0.98;
@@ -69,7 +69,7 @@ function buildEye(side: 1 | -1, surfaceZ: (x: number, y: number) => number, hi: 
   const root = new THREE.Group();
   root.name = side > 0 ? "EyeLeft" : "EyeRight";
   const ex = side * FACE.eyeX;
-  root.position.set(ex, FACE.eyeY, surfaceZ(ex, FACE.eyeY) - 0.0092);
+  root.position.set(ex, FACE.eyeY, surfaceZ(ex, FACE.eyeY) - 0.0102);
 
   const ball = new THREE.Group();
   root.add(ball);
@@ -219,7 +219,7 @@ function buildMouth(surfaceZ: (x: number, y: number) => number): MouthRig {
   };
 
   const lipMat = new THREE.MeshPhysicalMaterial({
-    color: 0x8f5444,
+    color: 0x9a6657,
     roughness: 0.42,
     sheen: 0.4,
     sheenColor: new THREE.Color(0xd08a78),

@@ -39,25 +39,33 @@ export function VerticalNavSidebar() {
         className={cn(
           "relative flex items-center justify-center transition-all duration-300 text-center",
           orientation === "vertical"
-            ? "w-10 h-10 md:w-12 md:h-12 rounded-2xl group hover:rounded-2xl"
-            : "flex-1 flex-col py-2 rounded-2xl",
-          isActive
-            ? "bg-gradient-to-tr from-[#70B040] to-[#F09030] text-white shadow-md shadow-emerald-500/20"
-            : "text-gray-600 hover:bg-gray-50 hover:text-[#70B040]"
+            ? cn(
+                "w-10 h-10 md:w-12 md:h-12 rounded-2xl group hover:rounded-2xl",
+                isActive
+                  ? "bg-gradient-to-tr from-[#70B040] to-[#F09030] text-white shadow-md shadow-emerald-500/20"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-[#70B040]"
+              )
+            : // Mobile bar: hero theme – white icons, yellow active key with a dark-red edge
+              cn(
+                "flex-1 h-11 rounded-2xl active:translate-y-0.5",
+                isActive
+                  ? "bg-[#FBFF00] text-[#141414] shadow-[0_3px_0_#A9462A]"
+                  : "text-white/90 hover:bg-white/15 hover:text-white"
+              )
         )}
         title={item.label}
+        aria-label={item.label}
+        aria-current={isActive ? "page" : undefined}
       >
         <Icon
           className={cn(
             "w-5 h-5 transition-all duration-300",
-            isActive && "scale-110"
+            isActive && "scale-110",
+            orientation === "horizontal" && isActive && "stroke-[2.4]"
           )}
         />
-        {orientation === "horizontal" && (
-          <span className="text-xs font-semibold mt-1"></span>
-        )}
         {/* Active indicator glow */}
-        {isActive && (
+        {isActive && orientation === "vertical" && (
           <span className="absolute inset-0 rounded-2xl bg-[#70B040]/20 blur-lg -z-10" />
         )}
         {/* Tooltip on hover (desktop only) */}
@@ -111,8 +119,13 @@ export function VerticalNavSidebar() {
       )}
 
       {/* Mobile bottom navigation */}
-      <div className="lg:hidden fixed inset-x-0 bottom-6 flex justify-center z-50 px-4">
-        <nav className="w-full max-w-xs bg-white/60 backdrop-blur-md border border-gray-200/40 rounded-3xl shadow-[0_12px_30px_rgba(0,0,0,0.15)] px-2 py-2 flex gap-2">
+      <div className="lg:hidden fixed inset-x-0 bottom-6 flex justify-center z-50 px-4 pointer-events-none">
+        <nav
+          aria-label="Main"
+          className="pointer-events-auto relative w-full max-w-xs overflow-hidden rounded-[24px] border border-white/25 bg-[linear-gradient(135deg,#D9383F_0%,#DE4A3B_35%,#E56C31_70%,#F0952A_100%)] px-2 py-2 flex gap-1.5 shadow-[0_5px_0_#A9362B,0_16px_30px_-8px_rgba(169,54,43,0.55)]"
+        >
+          {/* soft highlight, like the hero card */}
+          <span aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_0%,rgba(255,255,255,0.18),transparent_60%)]" />
           {navItems.map((item) => renderLink(item, "horizontal"))}
         </nav>
       </div>

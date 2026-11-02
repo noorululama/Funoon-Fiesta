@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { clamp, gauss, smoothstep } from "./host-math";
-import { makeHairTexture } from "./host-textures";
+import { makeHairTexture, makeSkinDetailMaps } from "./host-textures";
 
 /**
  * Head, ears and beard.
@@ -24,7 +24,7 @@ export const FACE = {
 } as const;
 
 export const SKIN_COLOR = 0xc08560;
-export const HAIR_COLOR = 0x54402f;
+export const HAIR_COLOR = 0x281d19;
 
 export interface HeadBuild {
   group: THREE.Group;
@@ -175,6 +175,7 @@ function buildHeadGeometry(cols: number, rows: number) {
   const count = 2 + (rows - 1) * cols;
   const pos = new Float32Array(count * 3);
   const col = new Float32Array(count * 3);
+  const uv = new Float32Array(count * 2);
   const p = new THREE.Vector3();
   const shade: number[] = [0, 0, 0];
   const vi = (i: number, j: number) => (i === 0 ? 0 : i === rows ? count - 1 : 1 + (i - 1) * cols + (j % cols));
@@ -186,6 +187,8 @@ function buildHeadGeometry(cols: number, rows: number) {
     skinShade(p, frontness, shade);
     pos.set([p.x, p.y, p.z], index * 3);
     col.set(shade, index * 3);
+    // A front-facing projection keeps skin detail continuous over the face.
+    uv.set([(p.x + 0.095) / 0.19, (p.y + 0.03) / 0.28], index * 2);
   };
   put(0, 0, 1, 0);
   put(count - 1, 0, -1, 0);
@@ -214,6 +217,7 @@ function buildHeadGeometry(cols: number, rows: number) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
   geo.setIndex(idx);
   geo.computeVertexNormals();
   return geo;
@@ -256,7 +260,7 @@ function attachMorphs(geo: THREE.BufferGeometry) {
 function beardMask(p: THREE.Vector3): number {
   const ax = Math.abs(p.x);
   // Cheek line: rises from the moustache to the sideburn in a gentle arc.
-  const topEdge = 0.0605 + 0.05 * Math.pow(smoothstep(0.016, 0.071, ax), 0.8);
+  const topEdge = 0.054 + 0.027 * Math.pow(smoothstep(0.016, 0.071, ax), 0.9);
   const mTop = smoothstep(topEdge + 0.006, topEdge - 0.005, p.y);
   // Back edge slopes: sideburn stops at the ear, jaw line wraps under to the neck.
   const zBack = -0.012 - 0.03 * smoothstep(0.05, -0.012, p.y);
@@ -309,15 +313,15 @@ function buildBeardGeometry(head: THREE.BufferGeometry) {
     const ax = Math.abs(p.x);
     const chinF = smoothstep(0.03, -0.006, p.y);
     const frontF = smoothstep(-0.02, 0.05, p.z);
-    let T = 0.0042 + 0.0105 * chinF * (0.3 + 0.7 * frontF);
-    // Moustache: a little fuller above the lip
-    T += 0.0048 * smoothstep(0.038, 0.012, ax) * smoothstep(0.04, 0.048, p.y);
+    let T = 0.0015 + 0.0021 * chinF * (0.3 + 0.7 * frontF);
+    // Keep the moustache close to the lip, with only a little extra density.
+    T += 0.0016 * smoothstep(0.038, 0.012, ax) * smoothstep(0.04, 0.048, p.y);
     // Sideburns blend into the cheek
-    T += 0.0018 * smoothstep(0.07, 0.1, p.y) * smoothstep(0.05, 0.075, ax);
+    T += 0.0012 * smoothstep(0.07, 0.1, p.y) * smoothstep(0.05, 0.075, ax);
     T = Math.max(0.0012, T) * (0.35 + 0.65 * Math.pow(m, 0.6));
 
     // Length: beard hangs below the chin, strongest at the centre.
-    const hang = 0.027 * smoothstep(0.004, -0.014, p.y) * gauss(ax * ax, 0.043) * frontF;
+    const hang = 0.0055 * smoothstep(0.004, -0.014, p.y) * gauss(ax * ax, 0.043) * frontF;
     verts.push(
       p.x + n.x * T,
       p.y + n.y * T - hang * m,
@@ -436,14 +440,21 @@ export function buildHead(quality: "high" | "low"): HeadBuild {
   const group = new THREE.Group();
   group.name = "HeadGroup";
 
+  const skinMaps = makeSkinDetailMaps([1.25, 1.25]);
   const skinMaterial = new THREE.MeshPhysicalMaterial({
     color: SKIN_COLOR,
-    roughness: 0.6,
+    roughness: 0.7,
     metalness: 0,
     vertexColors: true,
-    sheen: 0.35,
-    sheenRoughness: 0.5,
+    map: skinMaps.color,
+    bumpMap: skinMaps.bump,
+    bumpScale: 0.0022,
+    roughnessMap: skinMaps.roughness,
+    sheen: 0.28,
+    sheenRoughness: 0.62,
     sheenColor: new THREE.Color(0xffc9a0),
+    clearcoat: 0.025,
+    clearcoatRoughness: 0.62,
   });
 
   const geo = quality === "high" ? buildHeadGeometry(104, 78) : buildHeadGeometry(56, 42);
@@ -457,11 +468,11 @@ export function buildHead(quality: "high" | "low"): HeadBuild {
   const hairTex = makeHairTexture([5, 4]);
   const hairMaterial = new THREE.MeshPhysicalMaterial({
     color: HAIR_COLOR,
-    roughness: 0.62,
+    roughness: 0.76,
     metalness: 0,
-    sheen: 0.7,
-    sheenRoughness: 0.45,
-    sheenColor: new THREE.Color(0x9a7556),
+    sheen: 0.38,
+    sheenRoughness: 0.58,
+    sheenColor: new THREE.Color(0x72533f),
     map: hairTex,
     bumpMap: hairTex,
     bumpScale: 1.6,

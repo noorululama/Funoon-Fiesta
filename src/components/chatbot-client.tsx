@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type FormEvent } from "react";
 import {
   Mic,
-  MicOff,
   Volume2,
   VolumeX,
   Sparkles,
@@ -11,16 +10,15 @@ import {
   Calendar,
   Search,
   TrendingUp,
-  ArrowRight,
+  ArrowUp,
   RotateCcw,
   Copy,
   Check,
   Radio,
   MessageSquare,
-  Send,
   Square,
-  X,
   Subtitles,
+  Bot,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -33,6 +31,8 @@ type AIMode = "chat" | "character";
 interface Message {
   role: "user" | "assistant";
   content: string;
+  /** Which mode produced it: spoken host replies are plain text, chat replies are markdown. */
+  mode: AIMode;
 }
 
 const CHAT_SUGGESTIONS = [
@@ -62,6 +62,29 @@ const CHAT_SUGGESTIONS = [
   },
 ];
 
+// Instant spot reflexes: Spoken in 0ms while AI fetches answer in parallel
+const SPOT_REFLEXES = [
+  "തീർച്ചയായും, പറയാം.",
+  "ശരി, പരിശോധിക്കാം.",
+  "തീർച്ചയായും.",
+];
+
+// Instant intent matching for 0ms spot answers on common questions
+const INSTANT_INTENTS: { regex: RegExp; reply: string }[] = [
+  {
+    regex: /^(?:ഹലോ|ഹായ്|നമസ്കാരം|അസ്സലാമു അലൈക്കും|hello|hi|hey)(?:$|[\s,.!?।])/i,
+    reply: "വ അലൈക്കുമുസ്സലാം! ഞാൻ ഫുനൂൻ ഫിയസ്റ്റ 2026-ന്റെ 3D അവതാരകനാണ്. മത്സര ഫലങ്ങൾ, ടീം സ്കോറുകൾ എന്നിവയെക്കുറിച്ച് എന്നോട് ചോദിക്കാം!",
+  },
+  {
+    regex: /(നിങ്ങൾ ആരാണ്|ആരാണ് നിങ്ങൾ|who are you|താങ്കൾ ആരാണ്|പേരെന്താണ്)/i,
+    reply: "ഞാൻ ഫുനൂൻ ഫിയസ്റ്റ 2026-ന്റെ ഔദ്യോഗിക 3D ലൈവ് എഐ അവതാരകനാണ്. ഫെസ്റ്റിവലിന്റെ എല്ലാ വിവരങ്ങളും ഞാൻ നിങ്ങൾക്ക് പറഞ്ഞുതരാം.",
+  },
+  {
+    regex: /(തീം|theme|പ്രമേയം|ശതകം സാക്ഷി)/i,
+    reply: "ഫുനൂൻ ഫിയസ്റ്റ 2026-ന്റെ മുഖ്യ പ്രമേയം 'ശതകം സാക്ഷി' എന്നതാണ്.",
+  },
+];
+
 export default function ChatbotClient() {
   const [activeTab, setActiveTab] = useState<AIMode>("character");
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
@@ -71,6 +94,7 @@ export default function ChatbotClient() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceInputNotice, setVoiceInputNotice] = useState<string | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   // Character specific response display
@@ -85,16 +109,21 @@ export default function ChatbotClient() {
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const hasChatStarted = chatMessages.length > 0;
+  const hostStatus = isListening
+    ? "Listening to you"
+    : isSpeaking
+    ? "Speaking"
+    : isLoading
+    ? activeTab === "character" ? "Thinking through your question" : "Checking festival information"
+    : "Ready to help";
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
-    if (activeTab === "chat") {
-      scrollToBottom();
-    }
-  }, [chatMessages, isLoading, activeTab]);
+    scrollToBottom();
+  }, [chatMessages, isLoading]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -142,16 +171,21 @@ export default function ChatbotClient() {
 
   // Text-to-speech with crystal-clear Malayalam male voice tuning
   const speakText = useCallback(
-    (text: string, forceMalayalam = false) => {
+    (text: string, forceMalayalam = false, shouldCancel = true): boolean => {
       if (
         !voiceEnabled ||
         typeof window === "undefined" ||
         !("speechSynthesis" in window)
       ) {
-        return;
+        return false;
       }
 
-      window.speechSynthesis.cancel();
+      if (shouldCancel) {
+        window.speechSynthesis.cancel();
+      }
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
 
       // Clean formatting, symbols, and punctuation for natural, clear spoken Malayalam
       const cleanText = text
@@ -166,6 +200,8 @@ export default function ChatbotClient() {
         .replace(/\n+/g, ". ")
         .trim();
 
+      if (!cleanText) return false;
+
       const utterance = new SpeechSynthesisUtterance(cleanText);
 
       // Check if text contains Malayalam characters or character mode is active
@@ -178,12 +214,6 @@ export default function ChatbotClient() {
           : availableVoices;
 
       if (isMalayalamSpeech) {
-        utterance.lang = "ml-IN";
-        // Measured rate (0.88) provides crisp syllable articulation for easy comprehension
-        utterance.rate = 0.88;
-        // Resonant lower pitch (0.86) produces a warm, deep, authoritative clear male presenter voice
-        utterance.pitch = 0.86;
-
         // 1. High priority: Native Malayalam Male Voice (e.g., Microsoft Midhun Online Natural in Edge/Windows)
         let selectedVoice = currentVoices.find((v) => {
           const isMl = v.lang.toLowerCase().startsWith("ml") || v.name.toLowerCase().includes("malayalam");
@@ -198,26 +228,30 @@ export default function ChatbotClient() {
           });
         }
 
-        // 3. Fallback: Indian Male Voices (e.g., Microsoft Rahul, Microsoft Madhur, Microsoft Hemant, Microsoft Prabhat)
-        if (!selectedVoice) {
-          selectedVoice = currentVoices.find((v) => {
+        // If a native Malayalam voice is installed, use it with ml-IN
+        if (selectedVoice) {
+          utterance.voice = selectedVoice;
+          utterance.lang = selectedVoice.lang || "ml-IN";
+          utterance.rate = 0.90;
+          utterance.pitch = 0.88;
+        } else {
+          // Fallback: If no Malayalam voice exists on this OS/device, use Indian voice with its own matching language
+          // IMPORTANT: Do NOT set utterance.lang = "ml-IN" here, because Chromium aborts with language-unavailable error!
+          const indianVoice = currentVoices.find((v) => {
             const isIndian = v.lang.includes("IN") || v.name.includes("India");
             const n = v.name.toLowerCase();
             return isIndian && (n.includes("rahul") || n.includes("madhur") || n.includes("hemant") || n.includes("prabhat") || n.includes("male"));
-          });
-        }
+          }) || currentVoices.find((v) => v.lang.includes("IN") || v.name.includes("India") || v.lang.includes("en-US")) || currentVoices[0];
 
-        // 4. Any Indian voice fallback
-        if (!selectedVoice) {
-          selectedVoice = currentVoices.find((v) => v.lang.includes("IN") || v.name.includes("India"));
-        }
-
-        if (selectedVoice) {
-          utterance.voice = selectedVoice;
+          if (indianVoice) {
+            utterance.voice = indianVoice;
+            utterance.lang = indianVoice.lang;
+          }
+          utterance.rate = 0.95;
+          utterance.pitch = 0.92;
         }
       } else {
         // English voice selection with male preference
-        utterance.lang = "en-IN";
         utterance.rate = 0.96;
         utterance.pitch = 0.90;
 
@@ -225,9 +259,14 @@ export default function ChatbotClient() {
           const isEn = v.lang.includes("en-IN") || v.name.includes("India") || v.lang.includes("en-US");
           const n = v.name.toLowerCase();
           return isEn && (n.includes("rahul") || n.includes("prabhat") || n.includes("david") || n.includes("male"));
-        }) || currentVoices.find((v) => v.lang.includes("en-IN") || v.name.includes("India") || v.lang.includes("en-US"));
+        }) || currentVoices.find((v) => v.lang.includes("en-IN") || v.name.includes("India") || v.lang.includes("en-US")) || currentVoices[0];
 
-        if (enVoice) utterance.voice = enVoice;
+        if (enVoice) {
+          utterance.voice = enVoice;
+          utterance.lang = enVoice.lang;
+        } else {
+          utterance.lang = "en-IN";
+        }
       }
 
       utterance.onstart = () => {
@@ -236,16 +275,22 @@ export default function ChatbotClient() {
       };
 
       utterance.onend = () => {
-        setIsSpeaking(false);
-        setHumanState("idle");
+        if (typeof window !== "undefined" && !window.speechSynthesis.speaking) {
+          setIsSpeaking(false);
+          setHumanState("idle");
+        }
       };
 
-      utterance.onerror = () => {
-        setIsSpeaking(false);
-        setHumanState("idle");
+      utterance.onerror = (e) => {
+        console.warn("SpeechSynthesis utterance error:", e);
+        if (typeof window !== "undefined" && !window.speechSynthesis.speaking) {
+          setIsSpeaking(false);
+          setHumanState("idle");
+        }
       };
 
       window.speechSynthesis.speak(utterance);
+      return true;
     },
     [voiceEnabled, activeTab, availableVoices]
   );
@@ -294,13 +339,16 @@ export default function ChatbotClient() {
       (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert("Voice input is not supported in this browser. Please use text chat.");
+      setVoiceInputNotice("Speech recognition isn't supported in this browser. Try another browser with microphone support.");
       return;
     }
+
+    setVoiceInputNotice(null);
 
     // Stop active speech before listening
     stopSpeaking();
     currentTranscriptRef.current = "";
+    if (activeTab === "character") setInput("");
 
     try {
       const recognition = new SpeechRecognition();
@@ -321,9 +369,7 @@ export default function ChatbotClient() {
         const transcript = event.results[current][0].transcript;
         currentTranscriptRef.current = transcript;
 
-        if (activeTab === "chat") {
-          setInput(transcript);
-        }
+        setInput(transcript);
 
         // If browser marks as isFinal, send immediately
         if (event.results[current].isFinal) {
@@ -364,17 +410,22 @@ export default function ChatbotClient() {
         }, 1200);
       };
 
-      recognition.onerror = () => {
+      recognition.onerror = (event: any) => {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         setIsListening(false);
         setHumanState("idle");
+        setVoiceInputNotice(
+          event.error === "not-allowed" || event.error === "service-not-allowed"
+            ? "Allow microphone access in your browser settings, then tap the microphone to try again."
+            : event.error === "no-speech"
+            ? "I didn't hear speech. Tap the microphone and try again."
+            : "Voice input isn't available right now. Try again."
+        );
       };
 
       recognition.onend = () => {
         setIsListening(false);
-        if (humanState === "listening") {
-          setHumanState("idle");
-        }
+        setHumanState((current) => current === "listening" ? "idle" : current);
       };
 
       recognition.start();
@@ -382,36 +433,110 @@ export default function ChatbotClient() {
       console.error("Speech recognition error:", e);
       setIsListening(false);
       setHumanState("idle");
+      setVoiceInputNotice("Couldn't start the microphone. Check its permission and try again.");
     }
   };
 
-  // Character query handler (pure voice/spoken dialogue mode)
+  // Character query handler (pure voice/spoken dialogue mode with SPOT REPLY)
   const handleSendCharacterQuery = async (queryText: string) => {
-    if (!queryText.trim() || isLoading) return;
+    const trimmed = queryText.trim();
+    if (!trimmed || isLoading) return;
 
+    setInput("");
+    setVoiceInputNotice(null);
     stopSpeaking();
-    setCharacterUserQuery(queryText.trim());
+    setCharacterUserQuery(trimmed);
+    setChatMessages((prev) => [...prev, { role: "user", content: trimmed, mode: "character" }]);
+    const reply = (content: string) =>
+      setChatMessages((prev) => [...prev, { role: "assistant", content, mode: "character" }]);
+
+    // 1. Instant Intent Check: 0ms Spot Reply for greetings and common queries
+    for (const item of INSTANT_INTENTS) {
+      if (item.regex.test(trimmed)) {
+        setCharacterResponse(item.reply);
+        reply(item.reply);
+        setShowSubtitle(true);
+        if (!speakText(item.reply, true, true)) setHumanState("idle");
+        setIsLoading(false);
+        return;
+      }
+    }
+
     setIsLoading(true);
     setHumanState("thinking");
+    setCharacterResponse(null);
+    setShowSubtitle(true);
+    let streamedText = "";
+    let queuedSpeech = false;
 
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: queryText.trim(), mode: "character" }),
+        body: JSON.stringify({ message: trimmed, mode: "character" }),
       });
 
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error ?? "The host could not answer right now.");
+      }
 
-      setCharacterResponse(data.response);
+      if ((response.headers.get("content-type") ?? "").includes("application/json")) {
+        const data = await response.json();
+        streamedText = String(data.response ?? "");
+        setCharacterResponse(streamedText);
+      } else {
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("The host response stream is unavailable.");
+
+        const decoder = new TextDecoder();
+        let speechBuffer = "";
+        const speakCompletedSentences = (flush = false) => {
+          let match: RegExpMatchArray | null;
+          while ((match = speechBuffer.match(/^([\s\S]*?[.!?।])\s+/))) {
+            const sentence = match[1].trim();
+            speechBuffer = speechBuffer.slice(match[0].length);
+            if (sentence && speakText(sentence, true, false)) queuedSpeech = true;
+          }
+          if (flush && speechBuffer.trim()) {
+            if (speakText(speechBuffer.trim(), true, false)) queuedSpeech = true;
+            speechBuffer = "";
+          }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const part = decoder.decode(value, { stream: true });
+          if (!part) continue;
+          streamedText += part;
+          speechBuffer += part;
+          setCharacterResponse(streamedText);
+          speakCompletedSentences();
+        }
+
+        const lastPart = decoder.decode();
+        if (lastPart) {
+          streamedText += lastPart;
+          speechBuffer += lastPart;
+        }
+        speakCompletedSentences(true);
+      }
+
+      if (!streamedText.trim()) throw new Error("The host returned an empty answer.");
+      setCharacterResponse(streamedText);
+      reply(streamedText);
+      if (!queuedSpeech && !speakText(streamedText, true, false)) setHumanState("idle");
+    } catch (err) {
+      console.error("Error in handleSendCharacterQuery:", err);
+      const errMsg = streamedText.trim()
+        ? "ക്ഷമിക്കണം, മറുപടി പൂർത്തിയാകുന്നതിന് മുമ്പ് ബന്ധം നഷ്ടപ്പെട്ടു. വീണ്ടും ചോദിക്കൂ."
+        : "ക്ഷമിക്കണം, താൽക്കാലികമായി കണക്ട് ചെയ്യാൻ സാധിച്ചില്ല. ദയവായി വീണ്ടും ശ്രമിക്കുക.";
+      const finalText = streamedText.trim() ? `${streamedText.trim()} ${errMsg}` : errMsg;
+      setCharacterResponse(finalText);
+      reply(finalText);
       setShowSubtitle(true);
-      speakText(data.response, true);
-    } catch {
-      const errMsg = "ക്ഷമിക്കണം, താൽക്കാലികമായി കണക്ട് ചെയ്യാൻ സാധിച്ചില്ല. ദയവായി വീണ്ടും ശ്രമിക്കുക.";
-      setCharacterResponse(errMsg);
-      setShowSubtitle(true);
-      setHumanState("idle");
+      if (!speakText(errMsg, true, false)) setHumanState("idle");
     } finally {
       setIsLoading(false);
     }
@@ -421,11 +546,12 @@ export default function ChatbotClient() {
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
 
+    setVoiceInputNotice(null);
     stopSpeaking();
     const userMessage = text.trim();
     setInput("");
 
-    setChatMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setChatMessages((prev) => [...prev, { role: "user", content: userMessage, mode: "chat" }]);
     setIsLoading(true);
     setHumanState("thinking");
 
@@ -441,13 +567,13 @@ export default function ChatbotClient() {
 
       setChatMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.response },
+        { role: "assistant", content: data.response, mode: "chat" },
       ]);
-      speakText(data.response);
+      if (!speakText(data.response)) setHumanState("idle");
     } catch {
       setChatMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Sorry, I encountered a temporary connection issue. Please try again." },
+        { role: "assistant", content: "Sorry, I encountered a temporary connection issue. Please try again.", mode: "chat" },
       ]);
       setHumanState("idle");
     } finally {
@@ -458,7 +584,7 @@ export default function ChatbotClient() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage(input);
+      sendCurrent();
     }
   };
 
@@ -471,6 +597,8 @@ export default function ChatbotClient() {
   const handleResetChat = () => {
     stopSpeaking();
     setChatMessages([]);
+    setCharacterResponse(null);
+    setCharacterUserQuery(null);
     setHumanState("idle");
     setInput("");
   };
@@ -480,606 +608,538 @@ export default function ChatbotClient() {
     if (!isSpeaking && !isLoading) {
       const greeting = "അസ്സലാമു അലൈക്കും! ഞാൻ ഫുനൂൻ ഫിയസ്റ്റയുടെ 3D ലൈവ് എഐ അവതാരകനാണ്. മത്സര ഫലങ്ങൾ, ടീം സ്കോറുകൾ, പരിപാടികൾ എന്നിവയെക്കുറിച്ച് എന്നോട് സംസാരിക്കാം!";
       setCharacterResponse(greeting);
-      speakText(greeting, true);
+      if (!speakText(greeting, true)) setHumanState("idle");
     }
   };
 
-  return (
-    <div className="flex flex-col h-screen bg-[#F8F7F2] text-[#20251D] overflow-hidden font-sans relative">
-      {/* Background Ambient Spotlights */}
-      <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[720px] h-[520px] rounded-full bg-[#70B040]/10 blur-[140px] z-0" />
-      <div className="pointer-events-none absolute bottom-0 right-0 w-[550px] h-[450px] rounded-full bg-[#D6B35A]/10 blur-[130px] z-0" />
+  /** One composer for both modes: the active mode decides how the host answers. */
+  const sendText = (text: string) => {
+    if (activeTab === "character") handleSendCharacterQuery(text);
+    else handleSendMessage(text);
+  };
 
-      {/* =========================================================
-          TOP HEADER WITH MODE SWITCHER TABS
-      ========================================================= */}
-      <header className="relative z-30 w-full bg-white/95 backdrop-blur-md border-b border-[#E5E2D6] py-2.5 px-3 md:px-8 shadow-xs">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
-          {/* Brand & Mode Title */}
-          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#70B040] to-[#8CCB55] text-white shadow-md shadow-emerald-600/20">
-              {activeTab === "chat" ? (
-                <MessageSquare size={19} />
-              ) : (
-                <Radio
-                  size={19}
-                  className={isSpeaking ? "animate-pulse text-amber-200" : ""}
-                />
-              )}
+  const sendCurrent = () => {
+    const question = input.trim();
+    if (!question || isLoading) return;
+    sendText(question);
+  };
+
+  const handleComposerSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    sendCurrent();
+  };
+
+  const switchMode = (mode: AIMode) => {
+    stopSpeaking();
+    if (mode === "character") setVoiceEnabled(true);
+    setActiveTab(mode);
+  };
+
+  const lastAssistant = [...chatMessages].reverse().find((m) => m.role === "assistant");
+  const caption = activeTab === "character" ? characterResponse : lastAssistant?.content ?? null;
+
+  const statusDot = isListening
+    ? "bg-sky-500"
+    : isSpeaking
+      ? "bg-emerald-500"
+      : isLoading
+        ? "bg-amber-500"
+        : "bg-emerald-500";
+
+  return (
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#F6F5EF] font-sans text-[#20251D]">
+      {/* ── Header ─────────────────────────────────────────────── */}
+      <header className={cn(
+        "z-40 shrink-0 border-b border-black/5 bg-white/85 backdrop-blur-xl",
+        activeTab === "character" && "absolute inset-x-0 top-0 border-transparent bg-white/75",
+      )}>
+        <div className="mx-auto flex max-w-[1500px] items-center gap-3 py-3 pl-4 pr-16 sm:pl-5 md:pr-20 lg:pl-28">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#70B040] to-[#397D27] text-white shadow-md shadow-green-900/15">
+              <Bot size={22} strokeWidth={2.2} />
             </div>
-            <div>
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="font-bold text-xs sm:text-sm md:text-base tracking-tight text-[#20251D]">
-                  {activeTab === "character" ? "3D AI Character Host" : "Funoon AI Chat"}
-                </span>
-                <span
-                  className={cn(
-                    "text-[10px] font-extrabold px-2 py-0.5 rounded-full border",
-                    activeTab === "character"
-                      ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                      : "bg-amber-100 text-amber-800 border-amber-300"
-                  )}
-                >
-                  {activeTab === "character" ? "Malayalam Male Voice" : "Multilingual"}
-                </span>
-              </div>
-              <p className="text-[10px] sm:text-[11px] text-[#6D7168] flex items-center gap-1.5">
-                <span
-                  className={cn(
-                    "w-2 h-2 rounded-full",
-                    isListening
-                      ? "bg-blue-500 animate-ping"
-                      : isSpeaking
-                      ? "bg-emerald-500 animate-pulse"
-                      : "bg-emerald-500"
-                  )}
-                />
-                {isListening
-                  ? activeTab === "character"
-                    ? "Listening... Speak in Malayalam"
-                    : "Listening to your voice..."
-                  : isSpeaking
-                  ? activeTab === "character"
-                    ? "Speaking in Malayalam (Lip Sync Active)"
-                    : "Speaking response..."
-                  : isLoading
-                  ? "Consulting festival database..."
-                  : activeTab === "character"
-                  ? "Ready • Listens & Speaks in Malayalam"
-                  : "Ready • Ask questions about the fest"}
+            <div className="min-w-0">
+              <h1 className="truncate text-[15px] font-extrabold tracking-tight sm:text-base">Funoon AI Host</h1>
+              <p className="flex items-center gap-1.5 text-[11px] text-[#6F766A]">
+                <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusDot, (isListening || isSpeaking || isLoading) && "animate-pulse")} />
+                <span className="truncate" role="status" aria-live="polite">{hostStatus}</span>
               </p>
             </div>
           </div>
 
-          {/* Central Segmented Mode Switcher */}
-          <div className="flex items-center bg-[#ECE9DD] p-1 rounded-2xl border border-[#DCD7C5] shadow-inner">
-            <button
-              onClick={() => {
-                stopSpeaking();
-                setActiveTab("character");
-              }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer",
-                activeTab === "character"
-                  ? "bg-white text-[#20251D] shadow-sm"
-                  : "text-[#656A60] hover:text-[#20251D]"
-              )}
-            >
-              <Radio size={15} />
-              <span className="hidden xs:inline">AI Character (3D)</span>
-              <span className="xs:hidden">Character</span>
-            </button>
-
-            <button
-              onClick={() => {
-                stopSpeaking();
-                setActiveTab("chat");
-              }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer",
-                activeTab === "chat"
-                  ? "bg-white text-[#20251D] shadow-sm"
-                  : "text-[#656A60] hover:text-[#20251D]"
-              )}
-            >
-              <MessageSquare size={15} />
-              <span className="hidden xs:inline">Chat with AI</span>
-              <span className="xs:hidden">Chat</span>
-            </button>
+          {/* Mode switch */}
+          <div role="tablist" aria-label="Answer style" className="hidden items-center rounded-xl border border-black/5 bg-[#F1F3EC] p-1 sm:flex">
+            <ModeButton active={activeTab === "character"} onClick={() => switchMode("character")} icon={<Radio size={15} />} label="Talk to host" />
+            <ModeButton active={activeTab === "chat"} onClick={() => switchMode("chat")} icon={<MessageSquare size={15} />} label="Text chat" />
           </div>
 
-          {/* Controls: Voice Toggle & Reset */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {activeTab === "character" && (
-              <button
-                onClick={() => setShowSubtitle((prev) => !prev)}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer active:scale-95",
-                  showSubtitle
-                    ? "bg-white text-[#20251D] border-emerald-200 shadow-2xs hover:bg-gray-50"
-                    : "bg-gray-100 text-gray-500 border-gray-200 hover:text-gray-700"
-                )}
-                title={showSubtitle ? "Hide Text Subtitles" : "Show Text Subtitles"}
+          <div className="flex shrink-0 items-center gap-1.5">
+            {activeTab === "chat" && (
+              <IconToggle
+                active={voiceEnabled}
+                onClick={() => {
+                  if (voiceEnabled) stopSpeaking();
+                  setVoiceEnabled(!voiceEnabled);
+                }}
+                label={voiceEnabled ? "Mute host voice" : "Turn on host voice"}
               >
-                <Subtitles size={13} className={showSubtitle ? "text-[#5F9630]" : ""} />
-                <span className="hidden sm:inline">
-                  {showSubtitle ? "Text On" : "Text Off"}
-                </span>
-              </button>
+                {voiceEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
+              </IconToggle>
             )}
-
-            <button
-              onClick={() => {
-                if (voiceEnabled) stopSpeaking();
-                setVoiceEnabled(!voiceEnabled);
-              }}
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer active:scale-95",
-                voiceEnabled
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 shadow-xs"
-                  : "bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200"
-              )}
-              title={voiceEnabled ? "Mute Voice" : "Unmute Voice"}
-            >
-              {voiceEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
-              <span className="hidden sm:inline">
-                {voiceEnabled ? "Voice On" : "Voice Off"}
-              </span>
-            </button>
-
-            {activeTab === "chat" && hasChatStarted && (
-              <button
-                onClick={handleResetChat}
-                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold text-[#5A6054] bg-[#F1EFE6] hover:bg-[#E7E4D8] border border-[#DDD9C9] transition-all cursor-pointer active:scale-95"
-                title="Restart chat"
-              >
-                <RotateCcw size={13} />
-                <span className="hidden sm:inline">New</span>
-              </button>
+            {hasChatStarted && (
+              <IconToggle active={false} onClick={handleResetChat} label="Start a new conversation">
+                <RotateCcw size={16} />
+              </IconToggle>
             )}
+          </div>
+        </div>
+
+        {/* Mode switch – mobile */}
+        <div className="px-4 pb-3 sm:hidden">
+          <div role="tablist" aria-label="Answer style" className="flex items-center rounded-xl border border-black/5 bg-[#F1F3EC] p-1">
+            <ModeButton active={activeTab === "character"} onClick={() => switchMode("character")} icon={<Radio size={15} />} label="Talk to host" stretch />
+            <ModeButton active={activeTab === "chat"} onClick={() => switchMode("chat")} icon={<MessageSquare size={15} />} label="Text chat" stretch />
           </div>
         </div>
       </header>
 
-      {/* =========================================================
-          MAIN INTERFACE
-      ========================================================= */}
-      <main className="flex-1 flex flex-col relative w-full h-full overflow-hidden z-10">
-        {/* =========================================================
-            OPTION 1: 3D AI CHARACTER (FULL SCREEN STAGE)
-        ========================================================= */}
-        {activeTab === "character" && (
-          <div className="relative flex-1 w-full h-full overflow-hidden">
-            {/* Full Screen 3D Model Stage Canvas */}
-            <div className="absolute inset-0 w-full h-full z-0">
-              <Ai3dHuman
-                state={humanState}
-                isSpeakingAudio={isSpeaking}
-                isListeningMic={isListening}
-                onAvatarClick={handleAvatarClick}
-                showBadge={false}
-                allowViewToggle={true}
-                defaultViewMode="full"
-                fullScreen={true}
-              />
-            </div>
+      {/* ── Body: host stage + conversation ─────────────────────── */}
+      <main className={cn(
+        "relative grid min-h-0 w-full flex-1",
+        activeTab === "character"
+          ? "mx-0 max-w-none grid-cols-1 grid-rows-1 gap-0 p-0"
+          : "mx-auto max-w-[1500px] grid-rows-[auto_minmax(0,1fr)] gap-3 p-3 pb-[calc(6.25rem+env(safe-area-inset-bottom))] sm:gap-4 sm:p-4 lg:grid-cols-[minmax(360px,0.9fr)_minmax(0,1.1fr)] lg:grid-rows-1 lg:gap-5 lg:p-5 lg:pl-28",
+      )}>
+        {/* Host stage */}
+        <section
+          aria-label="3D festival host"
+          className={cn(
+            "overflow-hidden bg-[radial-gradient(ellipse_at_50%_25%,#2c4a30_0%,#152018_55%,#0e1510_100%)]",
+            activeTab === "character"
+              ? "fixed inset-0 z-0 h-[100dvh] w-screen rounded-none"
+              : "relative h-[24dvh] min-h-[170px] rounded-[26px] shadow-[0_24px_60px_-32px_rgba(20,40,22,0.7)] ring-1 ring-black/5 transition-[height] duration-500 lg:h-auto lg:min-h-0",
+          )}
+        >
+          {/* subtle festival glow */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/45 to-transparent" />
+          <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-[#D6B35A]/15 blur-3xl" />
 
-            {/* Floating Top Info Overlay (Sleek Glass Banner) */}
-            <div className="pointer-events-none absolute top-4 left-4 sm:left-6 z-20 flex flex-col items-start">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 backdrop-blur-md text-[#3F751E] text-xs font-bold border border-emerald-200/90 shadow-sm mb-1">
-                <Radio size={12} className="text-[#5F9630] animate-pulse" />
-                <span>3D Live Host • Clear Male Malayalam Voice</span>
-              </div>
-              <h1 className="text-sm sm:text-base md:text-lg font-black text-[#20251D] tracking-tight bg-white/70 backdrop-blur-xs px-2.5 py-0.5 rounded-lg border border-white/60">
-                Live Festival Presenter
-              </h1>
-            </div>
+          <Ai3dHuman
+            state={humanState}
+            isSpeakingAudio={isSpeaking}
+            isListeningMic={isListening}
+            onAvatarClick={handleAvatarClick}
+            className="absolute inset-0 z-10"
+            showBadge={false}
+            allowViewToggle
+            defaultViewMode="portrait"
+            fullScreen
+          />
 
-            {/* Floating Live Spoken Dialogue Box */}
-            <AnimatePresence>
-              {characterResponse && showSubtitle && (
-                <motion.div
-                  initial={{ opacity: 0, y: 15, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.96 }}
-                  className="absolute z-20 md:top-20 md:right-6 md:w-[380px] lg:w-[420px] md:bottom-28 md:inset-x-auto inset-x-3 bottom-36 max-h-[140px] md:max-h-[calc(100vh-190px)] flex flex-col bg-white/95 backdrop-blur-md border border-emerald-300/80 rounded-2xl shadow-2xl p-3.5 sm:p-4 text-left pointer-events-auto"
-                >
-                  {/* Card Header: Live Indicator, Title, & Close Button */}
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100/90 shrink-0">
-                    <div className="flex items-center gap-2">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                      </span>
-                      <span className="text-xs font-bold text-[#20251D]">Live Host Speech</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-[#3F751E] font-bold border border-emerald-200">
-                        Malayalam
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setShowSubtitle(false)}
-                      className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition cursor-pointer"
-                      title="Hide speech text (keep character clear)"
-                      aria-label="Hide speech text"
-                    >
-                      <X size={15} />
-                    </button>
-                  </div>
-
-                  {/* Query reference */}
-                  {characterUserQuery && (
-                    <div className="mb-1.5 shrink-0">
-                      <p className="text-[11px] font-medium text-[#7A8074] truncate">
-                        You asked: <span className="font-bold text-[#20251D]">&ldquo;{characterUserQuery}&rdquo;</span>
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Scrollable spoken content - never stretches parent to hide character */}
-                  <div className="flex-1 overflow-y-auto pr-1 text-xs sm:text-sm text-[#20251D] leading-relaxed font-semibold">
-                    <p className="whitespace-pre-line">{characterResponse}</p>
-                  </div>
-
-                  {/* Footer Action Buttons */}
-                  <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-gray-100 shrink-0">
-                    {isSpeaking ? (
-                      <button
-                        onClick={stopSpeaking}
-                        className="flex items-center gap-1 px-3 py-1 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-bold transition cursor-pointer active:scale-95"
-                      >
-                        <Square size={11} />
-                        <span>Stop Speaking</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => speakText(characterResponse, true)}
-                        className="flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-50 text-[#5F9630] hover:bg-emerald-100 text-xs font-bold transition cursor-pointer active:scale-95"
-                      >
-                        <Volume2 size={12} />
-                        <span>Listen Again in Malayalam</span>
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => setShowSubtitle(false)}
-                      className="text-[11px] font-semibold text-gray-400 hover:text-gray-700 transition cursor-pointer"
-                    >
-                      Hide Text
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Quick Button to restore dialogue if user closed it */}
-            {!showSubtitle && characterResponse && (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                onClick={() => setShowSubtitle(true)}
-                className="absolute z-20 top-20 right-4 sm:right-6 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-emerald-300 text-xs font-bold text-[#20251D] shadow-lg hover:bg-white hover:border-[#70B040] transition cursor-pointer active:scale-95"
-              >
-                <Subtitles size={13} className="text-[#5F9630]" />
-                <span>Show Speech Text</span>
-              </motion.button>
+          {/* Status pill */}
+          <div className={cn(
+            "pointer-events-none absolute left-3 z-20 flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1.5 text-[11px] font-semibold text-white/90 backdrop-blur-md",
+            activeTab === "character" ? "top-[calc(6.75rem+env(safe-area-inset-top))] sm:top-20" : "top-3",
+          )}>
+            {isListening || isSpeaking ? (
+              <span className="flex h-3 items-end gap-[2px]" aria-hidden>
+                {[0, 1, 2, 3].map((i) => (
+                  <span
+                    key={i}
+                    className={cn("w-[3px] origin-bottom rounded-full", isListening ? "bg-sky-300" : "bg-[#9ACB71]")}
+                    style={{ height: "100%", animation: `host-eq 0.9s ${i * 0.12}s ease-in-out infinite` }}
+                  />
+                ))}
+              </span>
+            ) : (
+              <span className={cn("h-2 w-2 rounded-full", statusDot, isLoading && "animate-pulse")} />
             )}
+            {hostStatus}
+          </div>
 
-            {/* Floating Bottom Voice Controls & Topic Chips */}
-            <div className="absolute bottom-4 inset-x-4 mx-auto max-w-xl z-20 flex flex-col items-center gap-2.5 pointer-events-auto">
-              {/* Primary Voice Action Button */}
-              <button
-                onClick={toggleListening}
-                disabled={isLoading}
+          {/* Live caption while the host speaks */}
+          <AnimatePresence>
+            {caption && showSubtitle && (isSpeaking || (activeTab === "character" && isLoading)) && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
                 className={cn(
-                  "flex items-center justify-center gap-3 px-8 py-3.5 rounded-full font-black text-sm sm:text-base shadow-xl transition-all active:scale-95 cursor-pointer backdrop-blur-sm",
-                  isLoading
-                    ? "bg-amber-600/95 text-white shadow-amber-600/30 cursor-wait ring-4 ring-amber-400/30"
-                    : isListening
-                    ? "bg-blue-600 hover:bg-blue-700 text-white animate-pulse shadow-blue-500/40 ring-4 ring-blue-400/30"
-                    : "bg-[#70B040] hover:bg-[#5F9630] text-white shadow-emerald-700/30 hover:shadow-2xl"
+                  "absolute inset-x-3 z-20 flex items-start gap-2 rounded-2xl border border-white/10 bg-black/50 p-2.5 pl-3.5 text-white backdrop-blur-md sm:inset-x-4",
+                  activeTab === "character" ? "bottom-[calc(8.5rem+env(safe-area-inset-bottom))]" : "bottom-3 sm:bottom-4",
                 )}
               >
-                {isLoading ? (
-                  <>
-                    <Sparkles size={20} className="animate-spin text-amber-200" />
-                    <span>Host is Thinking...</span>
-                  </>
-                ) : isListening ? (
-                  <>
-                    <MicOff size={20} className="animate-pulse" />
-                    <span>Listening... Tap to Send</span>
-                  </>
-                ) : (
-                  <>
-                    <Mic size={20} />
-                    <span>Speak with 3D Host</span>
-                  </>
-                )}
-              </button>
+                <p aria-live="polite" className="line-clamp-2 flex-1 text-[13px] font-medium leading-relaxed sm:line-clamp-3 sm:text-sm">
+                  {stripMarkdown(caption)}
+                </p>
+                <CaptionButton onClick={stopSpeaking} label="Stop speaking">
+                  <Square size={12} fill="currentColor" />
+                </CaptionButton>
+                <CaptionButton onClick={() => setShowSubtitle(false)} label="Hide captions" subtle>
+                  <Subtitles size={14} />
+                </CaptionButton>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-              <p className="text-[10px] sm:text-[11px] text-[#4F544A] text-center bg-white/75 backdrop-blur-xs px-3 py-0.5 rounded-full border border-white/60 shadow-2xs">
-                Tap avatar to greet • Drag anywhere to rotate 3D view
-              </p>
+          {isSpeaking && !showSubtitle && (
+            <button
+              onClick={() => setShowSubtitle(true)}
+              className="absolute bottom-3 left-3 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-[11px] font-semibold text-white/90 backdrop-blur-md hover:bg-black/50"
+            >
+              <Subtitles size={13} /> Show captions
+            </button>
+          )}
+
+          {activeTab === "chat" && !isSpeaking && !isLoading && !isListening && (
+            <p className="pointer-events-none absolute inset-x-0 bottom-3 z-20 text-center text-[11px] text-white/70 [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">
+              Tap the host to say hello · drag to turn
+            </p>
+          )}
+
+          {activeTab === "character" && (
+            <div className="absolute inset-x-0 bottom-[calc(1.25rem+env(safe-area-inset-bottom))] z-30 flex justify-center px-4">
+              <div className="flex max-w-[min(92vw,34rem)] items-center gap-3 rounded-full border border-white/15 bg-black/40 py-2.5 pl-2.5 pr-5 text-white shadow-xl shadow-black/20 backdrop-blur-xl sm:gap-4 sm:py-3 sm:pl-3 sm:pr-6">
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  disabled={isLoading}
+                  aria-label={isListening ? "Stop listening and send" : isLoading ? "The host is preparing an answer" : "Start speaking"}
+                  aria-pressed={isListening}
+                  className={cn(
+                    "relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full shadow-md transition active:scale-95 disabled:cursor-wait disabled:opacity-55 sm:h-16 sm:w-16",
+                    isListening ? "bg-sky-500 text-white shadow-sky-500/25" : "bg-[#70B040] text-white shadow-[#70B040]/25 hover:bg-[#5F9630]",
+                  )}
+                >
+                  {isListening && <span className="absolute inset-0 animate-ping rounded-full bg-sky-400/40" />}
+                  <Mic size={24} className="relative" />
+                </button>
+                <div className="min-w-0" aria-live="polite">
+                  <p className="text-sm font-bold sm:text-base">
+                    {isListening ? "Listening… speak now" : isLoading ? "Preparing your answer…" : "Tap the microphone to speak"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-white/70 sm:text-xs">
+                    {isListening ? "Pause or tap the microphone to send" : "Ask in Malayalam; the host replies aloud"}
+                  </p>
+                  {isListening && input.trim() && (
+                    <p className="mt-1 max-w-[60vw] truncate text-xs text-white/85">{input}</p>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </section>
 
-        {/* =========================================================
-            OPTION 2: CHAT WITH AI (FULL CHAT SECTION)
-        ========================================================= */}
+        {/* Conversation */}
         {activeTab === "chat" && (
-          <div className="flex-1 flex flex-col h-full overflow-hidden">
-            {/* Welcome State for Chat */}
-            {!hasChatStarted && (
-              <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-6 max-w-3xl mx-auto w-full flex flex-col items-center justify-start">
-                {/* Chat Intro Title */}
-                <div className="text-center max-w-xl mb-6 pt-2">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#70B040]/10 text-[#5F9630] text-xs font-bold mb-2">
-                    <Sparkles size={13} />
-                    <span>Official Festival AI Assistant</span>
-                  </div>
-                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#20251D]">
-                    Chat with Funoon Fiesta AI
-                  </h1>
-                  <p className="mt-1.5 text-xs sm:text-sm text-[#656A60] leading-relaxed">
-                    Ask any question about scoreboard points, published results, or participants. Supports both English and Malayalam.
+        <section aria-label="Conversation" className="flex min-h-0 flex-col overflow-hidden rounded-[26px] border border-black/5 bg-white shadow-[0_18px_50px_-36px_rgba(0,0,0,0.35)]">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
+            {!hasChatStarted ? (
+              <div className="mx-auto flex min-h-full max-w-xl flex-col">
+                <div className="my-auto py-1">
+                <div className="mb-4 text-center sm:mb-5">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#70B040]/10 px-3 py-1 text-[11px] font-bold text-[#4E8732]">
+                    <Sparkles size={12} /> Official festival assistant
+                  </span>
+                  <h2 className="mt-3 text-lg font-black tracking-tight sm:text-2xl">
+                    {activeTab === "character" ? "Talk with the 3D host" : "Ask anything about Funoon Fiesta"}
+                  </h2>
+                  <p className="mt-1.5 hidden text-[13px] leading-relaxed text-[#6A7065] sm:block">
+                    {activeTab === "character"
+                      ? "Tap the microphone and ask in Malayalam. The host will answer aloud."
+                      : "Get detailed written answers about scores, results and programs, in English or Malayalam."}
                   </p>
                 </div>
-
-                {/* Suggestions Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full mb-6">
-                  {CHAT_SUGGESTIONS.map((item, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleSendMessage(item.text)}
-                      className="group flex items-center justify-between p-3.5 bg-white/95 border border-[#E5E2D6] hover:border-[#70B040] rounded-2xl shadow-xs hover:shadow-md transition text-left cursor-pointer active:scale-98"
-                    >
-                      <div className="flex items-center gap-3 min-w-0 pr-2">
-                        <div
-                          className={cn(
-                            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br",
-                            item.color
-                          )}
-                        >
-                          <item.icon className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="block text-xs font-bold text-[#20251D] tracking-tight">
-                            {item.label}
-                          </span>
-                          <span className="block text-[11px] text-[#787D73] truncate">
-                            {item.text}
-                          </span>
-                        </div>
-                      </div>
-                      <ArrowRight
-                        size={15}
-                        className="text-[#B5B9AF] group-hover:text-[#70B040] group-hover:translate-x-1 transition shrink-0"
-                      />
-                    </button>
-                  ))}
+                {activeTab === "character" ? (
+                  <div className="mx-auto flex max-w-md items-center justify-center gap-3 rounded-2xl border border-[#70B040]/15 bg-[#70B040]/[0.06] px-4 py-3 text-center">
+                    <Mic size={18} className="shrink-0 text-[#4E8732]" aria-hidden="true" />
+                    <p className="text-[13px] font-medium leading-relaxed text-[#53614C]">
+                      Tap the microphone below and speak naturally. Pause when you finish to send your question.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {CHAT_SUGGESTIONS.map((item) => (
+                      <button
+                        key={item.label}
+                        onClick={() => sendText(item.text)}
+                        disabled={isLoading || isListening}
+                        className="group flex items-center gap-2.5 rounded-2xl border border-black/[0.06] bg-[#FAFAF7] p-2.5 text-left sm:items-start sm:gap-3 sm:p-3 transition hover:border-[#70B040]/50 hover:bg-white hover:shadow-sm active:scale-[0.99] disabled:opacity-60"
+                      >
+                        <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br", item.color)}>
+                          <item.icon size={15} />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-[12.5px] font-bold leading-tight sm:text-[13px]">{item.label}</span>
+                          <span className="mt-0.5 hidden text-[12px] leading-snug text-[#767C71] sm:block">{item.text}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 </div>
+              </div>
+            ) : (
+              <div className="mx-auto max-w-2xl space-y-5">
+                {chatMessages.map((msg, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className={cn("flex gap-2.5", msg.role === "user" ? "justify-end" : "justify-start")}
+                  >
+                    {msg.role === "assistant" && (
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#70B040] to-[#397D27] text-white">
+                        <Bot size={15} />
+                      </span>
+                    )}
+                    <div className={cn("min-w-0 max-w-[86%] sm:max-w-[80%]", msg.role === "user" && "flex flex-col items-end")}>
+                      <div
+                        className={cn(
+                          "text-[14px] leading-relaxed",
+                          msg.role === "user"
+                            ? "rounded-2xl rounded-br-md bg-[#2E4A26] px-4 py-2.5 text-white"
+                            : "rounded-2xl rounded-tl-md bg-[#F3F5EF] px-4 py-3 text-[#1F241C]",
+                        )}
+                      >
+                        {msg.role === "assistant" && msg.mode === "chat" ? (
+                          <div className="break-words [&_h1]:mb-1 [&_h1]:text-base [&_h1]:font-bold [&_h2]:mb-1 [&_h2]:font-bold [&_h3]:font-bold [&_li]:my-0.5 [&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1.5 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_strong]:font-bold [&_table]:my-2 [&_table]:w-full [&_table]:text-[13px] [&_td]:border-t [&_td]:border-black/5 [&_td]:py-1 [&_td]:pr-3 [&_th]:pr-3 [&_th]:text-left [&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5 [&_a]:font-semibold [&_a]:text-[#4E8732] [&_a]:underline">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p className="whitespace-pre-line break-words">{msg.content}</p>
+                        )}
+                      </div>
+                      {msg.role === "assistant" && (
+                        <div className="mt-0.5 flex items-center gap-0.5">
+                          <MessageAction onClick={() => speakText(msg.content, msg.mode === "character")} label="Read aloud">
+                            <Volume2 size={13} />
+                          </MessageAction>
+                          <MessageAction onClick={() => handleCopyMessage(msg.content, index)} label={copiedIndex === index ? "Copied" : "Copy"}>
+                            {copiedIndex === index ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                          </MessageAction>
+                          {msg.mode === "character" && (
+                            <span className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-[#9AA094]">Spoken</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
 
-                {/* Initial Input Bar in Welcome State */}
-                <div className="w-full relative shadow-lg shadow-black/5 rounded-3xl bg-white p-2.5 flex flex-col border border-[#E0DCCF] transition focus-within:border-[#70B040] focus-within:ring-3 focus-within:ring-[#70B040]/15">
+                {isLoading && (
+                  <div className="flex items-center gap-2.5" aria-label="The host is preparing an answer">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#70B040] to-[#397D27] text-white">
+                      <Bot size={15} />
+                    </span>
+                    <div className="flex items-center gap-2 rounded-2xl rounded-tl-md bg-[#F3F5EF] px-4 py-3">
+                      <span className="flex gap-1" aria-hidden>
+                        {[0, 1, 2].map((i) => (
+                          <span key={i} className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#70B040]" style={{ animationDelay: `${i * 0.15}s` }} />
+                        ))}
+                      </span>
+                      <span className="text-[12px] font-medium text-[#6A7065]">Checking festival records…</span>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
+
+          {/* Composer */}
+          <div className="shrink-0 border-t border-black/5 bg-white p-3 sm:p-4">
+            {voiceInputNotice && (
+              <p role="status" className="mb-2 text-center text-xs font-medium text-amber-700">
+                {voiceInputNotice}
+              </p>
+            )}
+            {activeTab === "character" ? (
+              <div className="mx-auto flex max-w-2xl flex-col items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  disabled={isLoading}
+                  aria-label={isListening ? "Stop listening and send" : isLoading ? "The host is preparing an answer" : "Start speaking"}
+                  aria-pressed={isListening}
+                  className={cn(
+                    "relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full shadow-md transition active:scale-95 disabled:cursor-wait disabled:opacity-55",
+                    isListening ? "bg-sky-500 text-white shadow-sky-500/25" : "bg-[#70B040] text-white shadow-[#70B040]/25 hover:bg-[#5F9630]",
+                  )}
+                >
+                  {isListening && <span className="absolute inset-0 animate-ping rounded-full bg-sky-400/40" />}
+                  <Mic size={23} className="relative" />
+                </button>
+                <div className="text-center" aria-live="polite">
+                  <p className="text-[13px] font-bold text-[#35412F]">
+                    {isListening ? "Listening… speak now" : isLoading ? "Preparing your answer…" : "Tap the microphone to speak"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-[#838A7C]">
+                    {isListening ? "Pause or tap the microphone to send" : "Ask in Malayalam; the host replies aloud"}
+                  </p>
+                </div>
+                {isListening && input.trim() && (
+                  <p className="max-w-xl text-center text-xs text-[#687260]">{input}</p>
+                )}
+              </div>
+            ) : (
+              <>
+                <form
+                  onSubmit={handleComposerSubmit}
+                  className="mx-auto flex max-w-2xl items-end gap-2 rounded-2xl border border-black/10 bg-[#FAFAF7] p-1.5 transition focus-within:border-[#70B040] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#70B040]/10"
+                >
+                  <button
+                    type="button"
+                    onClick={toggleListening}
+                    disabled={isLoading}
+                    aria-label={isListening ? "Stop listening and send" : "Ask by voice"}
+                    aria-pressed={isListening}
+                    className={cn(
+                      "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition active:scale-95 disabled:opacity-50",
+                      isListening ? "bg-sky-500 text-white" : "text-[#5C6656] hover:bg-[#70B040]/10 hover:text-[#4E8732]",
+                    )}
+                  >
+                    {isListening && <span className="absolute inset-0 animate-ping rounded-xl bg-sky-400/40" />}
+                    <Mic size={19} className="relative" />
+                  </button>
                   <textarea
                     ref={textareaRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type your question in English or Malayalam..."
-                    className="w-full bg-transparent text-[#20251D] placeholder:text-[#A2A79C] px-3 py-2 focus:outline-none resize-none text-sm md:text-base leading-relaxed"
-                    rows={2}
+                    rows={1}
+                    disabled={isListening}
+                    placeholder={isListening ? "Listening… tap the mic again to send" : "Ask about scores, results, programs…"}
+                    aria-label="Your question"
+                    className="max-h-[140px] min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-[15px] leading-6 text-[#20251D] outline-none placeholder:text-[#9EA398]"
                   />
-
-                  <div className="flex items-center justify-between px-3 pb-1 pt-1 mt-auto border-t border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={toggleListening}
-                        className={cn(
-                          "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer",
-                          isListening
-                            ? "bg-blue-600 text-white animate-pulse"
-                            : "bg-gray-100 text-gray-700 hover:bg-[#70B040]/15 hover:text-[#5F9630]"
-                        )}
-                        title="Voice Input"
-                      >
-                        <Mic size={15} />
-                        <span>{isListening ? "Listening..." : "Voice Input"}</span>
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => handleSendMessage(input)}
-                      disabled={!input.trim() || isLoading}
-                      className={cn(
-                        "flex items-center justify-center gap-2 h-9 px-4 rounded-xl font-bold text-xs transition active:scale-95 cursor-pointer",
-                        input.trim() && !isLoading
-                          ? "bg-[#70B040] hover:bg-[#5F9630] text-white shadow-md shadow-emerald-600/20"
-                          : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      )}
-                    >
-                      <span>Ask AI</span>
-                      <ArrowRight size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Active Chat Conversation History */}
-            {hasChatStarted && (
-              <div className="flex-1 flex flex-col h-full overflow-hidden">
-                <div className="flex-1 overflow-y-auto scroll-smooth px-4 md:px-8 py-5">
-                  <div className="max-w-3xl mx-auto space-y-4">
-                    {chatMessages.map((msg, index) => (
-                      <motion.div
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        key={index}
-                        className={cn(
-                          "flex gap-3 w-full",
-                          msg.role === "user" ? "justify-end" : "justify-start"
-                        )}
-                      >
-                        {msg.role === "assistant" && (
-                          <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center shrink-0 shadow-xs mt-1 text-[#5F9630]">
-                            <Sparkles size={16} />
-                          </div>
-                        )}
-
-                        <div
-                          className={cn(
-                            "group relative max-w-[85%] md:max-w-[78%]",
-                            msg.role === "user" ? "items-end" : "items-start"
-                          )}
-                        >
-                          <div
-                            className={cn(
-                              "px-4 py-3.5 text-sm leading-relaxed",
-                              msg.role === "user"
-                                ? "bg-gradient-to-tr from-[#70B040] to-[#5F9630] text-white rounded-2xl rounded-tr-xs shadow-md shadow-emerald-900/10 font-medium"
-                                : "bg-white border border-[#E5E2D6] text-[#242424] rounded-2xl rounded-tl-xs shadow-xs"
-                            )}
-                          >
-                            <div
-                              className={cn(
-                                "prose prose-sm max-w-none break-words",
-                                msg.role === "user"
-                                  ? "prose-invert"
-                                  : "prose-headings:font-bold prose-headings:text-[#20251D] prose-strong:text-[#20251D] prose-p:my-1"
-                              )}
-                            >
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {msg.content}
-                              </ReactMarkdown>
-                            </div>
-                          </div>
-
-                          {/* Action Buttons for Assistant Message */}
-                          {msg.role === "assistant" && (
-                            <div className="flex items-center gap-3 mt-1.5 px-2">
-                              <button
-                                onClick={() => speakText(msg.content)}
-                                className="text-[11px] text-[#7A8074] hover:text-[#70B040] flex items-center gap-1 cursor-pointer font-medium"
-                                title="Listen to response"
-                              >
-                                <Volume2 size={13} />
-                                <span>Listen</span>
-                              </button>
-
-                              <button
-                                onClick={() =>
-                                  handleCopyMessage(msg.content, index)
-                                }
-                                className="text-[11px] text-[#7A8074] hover:text-[#20251D] flex items-center gap-1 cursor-pointer font-medium"
-                                title="Copy text"
-                              >
-                                {copiedIndex === index ? (
-                                  <>
-                                    <Check
-                                      size={13}
-                                      className="text-emerald-600"
-                                    />
-                                    <span className="text-emerald-600 font-semibold">
-                                      Copied
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy size={13} />
-                                    <span>Copy</span>
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    ))}
-
-                    {/* Thinking status */}
-                    {isLoading && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex gap-3 items-center"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-white border border-[#DDD9C9] flex items-center justify-center shrink-0 shadow-xs text-[#F09030]">
-                          <Sparkles size={16} className="animate-spin" />
-                        </div>
-                        <div className="px-4 py-3 bg-white border border-[#E5E2D6] rounded-2xl rounded-tl-xs shadow-xs flex items-center gap-2">
-                          <span className="w-2 h-2 bg-[#70B040] rounded-full animate-bounce [animation-delay:-0.3s]" />
-                          <span className="w-2 h-2 bg-[#D6B35A] rounded-full animate-bounce [animation-delay:-0.15s]" />
-                          <span className="w-2 h-2 bg-[#F09030] rounded-full animate-bounce" />
-                          <span className="text-xs font-semibold text-[#6D7168] ml-1">
-                            AI is searching festival records...
-                          </span>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    <div ref={messagesEndRef} className="h-4" />
-                  </div>
-                </div>
-
-                {/* Bottom Input Bar for Active Chat */}
-                <div className="w-full bg-white/95 backdrop-blur-md border-t border-[#E5E2D6] p-3 md:p-4 z-20">
-                  <div className="max-w-3xl mx-auto">
-                    <div className="relative flex items-end gap-2 bg-white rounded-2xl border border-[#DDD9C9] shadow-xs p-1.5 md:p-2 focus-within:border-[#70B040] focus-within:ring-2 focus-within:ring-[#70B040]/15 transition">
-                      <button
-                        onClick={toggleListening}
-                        className={cn(
-                          "p-2.5 rounded-xl transition cursor-pointer shrink-0",
-                          isListening
-                            ? "bg-blue-600 text-white animate-pulse"
-                            : "text-gray-500 hover:text-[#70B040] hover:bg-gray-100"
-                        )}
-                        title={
-                          isListening
-                            ? "Stop Listening"
-                            : "Speak with Microphone"
-                        }
-                      >
-                        <Mic size={18} />
-                      </button>
-
-                      <textarea
-                        ref={textareaRef}
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder={
-                          isListening
-                            ? "Listening to your voice..."
-                            : "Type a question in English or Malayalam..."
-                        }
-                        className="bg-transparent text-[#20251D] placeholder:text-[#9EA398] w-full pl-1 md:pl-2 py-2 focus:outline-none resize-none text-sm md:text-base leading-relaxed"
-                        rows={1}
-                        style={{ minHeight: "28px" }}
-                      />
-
-                      <button
-                        onClick={() => handleSendMessage(input)}
-                        disabled={isLoading || !input.trim()}
-                        className={cn(
-                          "flex items-center justify-center w-9 h-9 rounded-xl shrink-0 transition duration-200 active:scale-95 cursor-pointer",
-                          input.trim() && !isLoading
-                            ? "bg-[#70B040] text-white shadow-md shadow-emerald-600/20 hover:bg-[#5F9630]"
-                            : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                        )}
-                        title="Send message"
-                      >
-                        <Send size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                  <button
+                    type="submit"
+                    disabled={isLoading || isListening || !input.trim()}
+                    aria-label="Send"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#70B040] text-white shadow-sm transition hover:bg-[#5F9630] active:scale-95 disabled:bg-black/[0.06] disabled:text-black/30 disabled:shadow-none"
+                  >
+                    <ArrowUp size={18} strokeWidth={2.5} />
+                  </button>
+                </form>
+                <p className="mx-auto mt-2 hidden max-w-2xl text-center text-[11px] text-[#9AA094] sm:block">
+                  Detailed written answers · Enter to send, Shift + Enter for a new line
+                </p>
+              </>
             )}
           </div>
+        </section>
         )}
       </main>
     </div>
+  );
+}
+
+/* ── Small presentational helpers ───────────────────────────────── */
+
+function stripMarkdown(text: string) {
+  return text
+    .replace(/[*_#`>]/g, "")
+    .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+}
+
+function ModeButton({
+  active,
+  onClick,
+  icon,
+  label,
+  stretch,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  stretch?: boolean;
+}) {
+  return (
+    <button
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        "flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-bold transition",
+        stretch && "flex-1",
+        active ? "bg-white text-[#2E4A26] shadow-sm" : "text-[#6F766A] hover:text-[#2E4A26]",
+      )}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function IconToggle({
+  active,
+  onClick,
+  label,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "flex h-10 w-10 items-center justify-center rounded-xl border transition active:scale-95",
+        active ? "border-[#D7E9CC] bg-[#F0F8EA] text-[#4E8732]" : "border-black/[0.07] bg-white text-[#6F766A] hover:bg-[#F6F7F3]",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function CaptionButton({
+  onClick,
+  children,
+  label,
+  subtle,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+  label: string;
+  subtle?: boolean;
+}) {
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition active:scale-95",
+        subtle ? "text-white/60 hover:bg-white/10 hover:text-white" : "bg-white/15 text-white hover:bg-white/25",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function MessageAction({ onClick, label, children }: { onClick: () => void; label: string; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="flex h-7 w-7 items-center justify-center rounded-lg text-[#8A9085] transition hover:bg-black/5 hover:text-[#2E4A26]"
+    >
+      {children}
+    </button>
   );
 }

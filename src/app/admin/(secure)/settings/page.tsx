@@ -199,22 +199,22 @@ function SettingsContent() {
                 </div>
 
                 {/* Dropdown Selector for Admin Settings Sections */}
-                {/* <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3">
                     <Label htmlFor="settings-dropdown" className="text-xs font-semibold uppercase tracking-wider text-white/70">
-                        Settings Dropdown:
+                        Section:
                     </Label>
                     <select
                         id="settings-dropdown"
                         value={activeTab}
                         onChange={(e) => handleTabChange(e.target.value)}
-                        className="bg-transparent border border-white/20 text-white rounded-xl px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-fuchsia-500 cursor-pointer"
+                        className="bg-slate-900 border border-white/20 text-white rounded-xl px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-fuchsia-500 cursor-pointer"
                     >
                         <option value="rules" className="bg-slate-900 text-white">🎯 Festival Rules & Points</option>
                         <option value="backup" className="bg-slate-900 text-white">💾 Data Management & Backup</option>
                         <option value="credentials" className="bg-slate-900 text-white">🔐 Admin Credentials</option>
                         <option value="all" className="bg-slate-900 text-white">⚙️ View All Sections</option>
                     </select>
-                </div> */}
+                </div>
             </div>
 
             {/* SECTIONS BASED ON DROPDOWN SELECTION */}

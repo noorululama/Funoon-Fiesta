@@ -66,10 +66,78 @@ User Query: ${message}
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const candidateModels = [
+            "gemini-3.8-flash",
             "gemini-flash-lite-latest",
-            "gemini-flash-latest",
-            "gemini-2.5-flash-lite"
+            "gemini-3.5-flash"
         ];
+
+        if (isCharacterMode) {
+            let selectedIterator: AsyncIterator<{ text: () => string }> | null = null;
+            let firstChunk: { text: () => string } | null = null;
+            let lastStreamError: unknown = null;
+
+            // Start speech output as soon as the first model text is ready.
+            for (const modelName of candidateModels) {
+                try {
+                    const model = genAI.getGenerativeModel({
+                        model: modelName,
+                        generationConfig: {
+                            temperature: 0.25,
+                            maxOutputTokens: 220,
+                        }
+                    });
+                    const result = await model.generateContentStream(systemPrompt);
+                    const iterator = result.stream[Symbol.asyncIterator]();
+                    const first = await iterator.next();
+                    if (first.done || !first.value) continue;
+                    selectedIterator = iterator;
+                    firstChunk = first.value;
+                    break;
+                } catch (err) {
+                    lastStreamError = err;
+                    console.warn(`Streaming model ${modelName} failed, attempting fallback...`);
+                }
+            }
+
+            if (!selectedIterator || !firstChunk) {
+                throw lastStreamError || new Error("No model returned a stream response");
+            }
+
+            const iterator = selectedIterator;
+            const initialChunk = firstChunk;
+            const encoder = new TextEncoder();
+            const body = new ReadableStream<Uint8Array>({
+                async start(controller) {
+                    const enqueueText = (chunk: { text: () => string }) => {
+                        const text = chunk.text();
+                        if (text) controller.enqueue(encoder.encode(text));
+                    };
+
+                    try {
+                        enqueueText(initialChunk);
+                        while (true) {
+                            const next = await iterator.next();
+                            if (next.done) break;
+                            if (next.value) enqueueText(next.value);
+                        }
+                        controller.close();
+                    } catch (err) {
+                        controller.error(err);
+                    }
+                },
+                cancel() {
+                    void iterator.return?.();
+                },
+            });
+
+            return new Response(body, {
+                headers: {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "no-cache, no-transform",
+                    "X-Accel-Buffering": "no",
+                },
+            });
+        }
 
         let text = "";
         let lastError: unknown = null;
