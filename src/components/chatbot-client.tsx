@@ -7,9 +7,10 @@ import {
   VolumeX,
   Sparkles,
   Trophy,
-  Calendar,
-  Search,
-  TrendingUp,
+  CalendarDays,
+  Medal,
+  BookOpenCheck,
+  ArrowUpRight,
   ArrowUp,
   RotateCcw,
   Copy,
@@ -18,15 +19,18 @@ import {
   MessageSquare,
   Square,
   Subtitles,
-  Bot,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Ai3dHuman, type HumanState } from "@/components/ai-3d-human";
 
 type AIMode = "chat" | "character";
+
+// Keep the 3D host available in the code, but hidden from the chatbot UI for now.
+const SHOW_3D_CHATBOT = false;
 
 interface Message {
   role: "user" | "assistant";
@@ -40,25 +44,25 @@ const CHAT_SUGGESTIONS = [
     icon: Trophy,
     text: "Who is currently leading the team scoreboard?",
     label: "Live Scoreboard",
-    color: "from-amber-500/15 to-orange-500/10 text-amber-700",
+    tile: "from-[#FFC24B] to-[#F2782A] shadow-[#F2782A]/35",
   },
   {
-    icon: Search,
+    icon: Medal,
     text: "Summarize the latest published results.",
     label: "Latest Results",
-    color: "from-emerald-500/15 to-green-500/10 text-emerald-700",
+    tile: "from-[#FF7A6B] to-[#D9383F] shadow-[#D9383F]/35",
   },
   {
-    icon: Calendar,
+    icon: CalendarDays,
     text: "What are the events and programs in Funoon Fiesta?",
     label: "Events & Programs",
-    color: "from-blue-500/15 to-cyan-500/10 text-blue-700",
+    tile: "from-[#6FA8FF] to-[#3D5FE0] shadow-[#3D5FE0]/35",
   },
   {
-    icon: TrendingUp,
+    icon: BookOpenCheck,
     text: "How does the grade and point scoring system work?",
     label: "Point Rules",
-    color: "from-purple-500/15 to-indigo-500/10 text-purple-700",
+    tile: "from-[#B184FF] to-[#6C3FD8] shadow-[#6C3FD8]/35",
   },
 ];
 
@@ -86,7 +90,7 @@ const INSTANT_INTENTS: { regex: RegExp; reply: string }[] = [
 ];
 
 export default function ChatbotClient() {
-  const [activeTab, setActiveTab] = useState<AIMode>("character");
+  const [activeTab, setActiveTab] = useState<AIMode>(SHOW_3D_CHATBOT ? "character" : "chat");
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -635,6 +639,10 @@ export default function ChatbotClient() {
     setActiveTab(mode);
   };
 
+  // Plain booleans (not narrowed by the JSX branches below) for checks inside mode-specific markup.
+  const isCharacterMode: boolean = activeTab === "character";
+  const isChatMode: boolean = activeTab === "chat";
+
   const lastAssistant = [...chatMessages].reverse().find((m) => m.role === "assistant");
   const caption = activeTab === "character" ? characterResponse : lastAssistant?.content ?? null;
 
@@ -647,20 +655,21 @@ export default function ChatbotClient() {
         : "bg-emerald-500";
 
   return (
-    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#F6F5EF] font-sans text-[#20251D]">
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#FBF8F4] font-sans text-[#1E1B18]">
+      {/* soft brand glow + dot grid */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 z-0" style={{ backgroundImage: "radial-gradient(#E9E2DA 1.1px, transparent 1.1px)", backgroundSize: "30px 30px" }} />
+      <div aria-hidden className="pointer-events-none absolute -top-40 left-1/2 z-0 h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(240,149,42,0.18),transparent)]" />
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className={cn(
-        "z-40 shrink-0 border-b border-black/5 bg-white/85 backdrop-blur-xl",
+        "relative z-40 shrink-0 border-b border-black/[0.06] bg-white/80 backdrop-blur-xl",
         activeTab === "character" && "absolute inset-x-0 top-0 border-transparent bg-white/75",
       )}>
         <div className="mx-auto flex max-w-[1500px] items-center gap-3 py-3 pl-4 pr-16 sm:pl-5 md:pr-20 lg:pl-28">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#70B040] to-[#397D27] text-white shadow-md shadow-green-900/15">
-              <Bot size={22} strokeWidth={2.2} />
-            </div>
+            <BrandMark className="h-11 w-11" />
             <div className="min-w-0">
-              <h1 className="truncate text-[15px] font-extrabold tracking-tight sm:text-base">Funoon AI Host</h1>
-              <p className="flex items-center gap-1.5 text-[11px] text-[#6F766A]">
+              <h1 className="truncate text-[15px] font-extrabold tracking-tight sm:text-base">Funoon AI Assistant</h1>
+              <p className="flex items-center gap-1.5 text-[11px] text-[#7A716A]">
                 <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusDot, (isListening || isSpeaking || isLoading) && "animate-pulse")} />
                 <span className="truncate" role="status" aria-live="polite">{hostStatus}</span>
               </p>
@@ -668,10 +677,12 @@ export default function ChatbotClient() {
           </div>
 
           {/* Mode switch */}
-          <div role="tablist" aria-label="Answer style" className="hidden items-center rounded-xl border border-black/5 bg-[#F1F3EC] p-1 sm:flex">
-            <ModeButton active={activeTab === "character"} onClick={() => switchMode("character")} icon={<Radio size={15} />} label="Talk to host" />
-            <ModeButton active={activeTab === "chat"} onClick={() => switchMode("chat")} icon={<MessageSquare size={15} />} label="Text chat" />
-          </div>
+          {SHOW_3D_CHATBOT && (
+            <div role="tablist" aria-label="Answer style" className="hidden items-center rounded-xl border border-black/5 bg-[#F1F3EC] p-1 sm:flex">
+              <ModeButton active={activeTab === "character"} onClick={() => switchMode("character")} icon={<Radio size={15} />} label="Talk to host" />
+              <ModeButton active={activeTab === "chat"} onClick={() => switchMode("chat")} icon={<MessageSquare size={15} />} label="Text chat" />
+            </div>
+          )}
 
           <div className="flex shrink-0 items-center gap-1.5">
             {activeTab === "chat" && (
@@ -695,12 +706,14 @@ export default function ChatbotClient() {
         </div>
 
         {/* Mode switch – mobile */}
-        <div className="px-4 pb-3 sm:hidden">
-          <div role="tablist" aria-label="Answer style" className="flex items-center rounded-xl border border-black/5 bg-[#F1F3EC] p-1">
-            <ModeButton active={activeTab === "character"} onClick={() => switchMode("character")} icon={<Radio size={15} />} label="Talk to host" stretch />
-            <ModeButton active={activeTab === "chat"} onClick={() => switchMode("chat")} icon={<MessageSquare size={15} />} label="Text chat" stretch />
+        {SHOW_3D_CHATBOT && (
+          <div className="px-4 pb-3 sm:hidden">
+            <div role="tablist" aria-label="Answer style" className="flex items-center rounded-xl border border-black/5 bg-[#F1F3EC] p-1">
+              <ModeButton active={activeTab === "character"} onClick={() => switchMode("character")} icon={<Radio size={15} />} label="Talk to host" stretch />
+              <ModeButton active={activeTab === "chat"} onClick={() => switchMode("chat")} icon={<MessageSquare size={15} />} label="Text chat" stretch />
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
       {/* ── Body: host stage + conversation ─────────────────────── */}
@@ -708,9 +721,10 @@ export default function ChatbotClient() {
         "relative grid min-h-0 w-full flex-1",
         activeTab === "character"
           ? "mx-0 max-w-none grid-cols-1 grid-rows-1 gap-0 p-0"
-          : "mx-auto max-w-[1500px] grid-rows-[auto_minmax(0,1fr)] gap-3 p-3 pb-[calc(6.25rem+env(safe-area-inset-bottom))] sm:gap-4 sm:p-4 lg:grid-cols-[minmax(360px,0.9fr)_minmax(0,1.1fr)] lg:grid-rows-1 lg:gap-5 lg:p-5 lg:pl-28",
+          : "mx-auto max-w-[1000px] grid-cols-1 grid-rows-[minmax(0,1fr)] gap-3 p-3 pb-[calc(6.25rem+env(safe-area-inset-bottom))] sm:gap-4 sm:p-4 lg:grid-cols-1 lg:grid-rows-1 lg:gap-5 lg:p-5 lg:pl-28",
       )}>
         {/* Host stage */}
+        {activeTab === "character" && SHOW_3D_CHATBOT && (
         <section
           aria-label="3D festival host"
           className={cn(
@@ -791,7 +805,7 @@ export default function ChatbotClient() {
             </button>
           )}
 
-          {activeTab === "chat" && !isSpeaking && !isLoading && !isListening && (
+          {isChatMode && !isSpeaking && !isLoading && !isListening && (
             <p className="pointer-events-none absolute inset-x-0 bottom-3 z-20 text-center text-[11px] text-white/70 [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">
               Tap the host to say hello · drag to turn
             </p>
@@ -829,28 +843,41 @@ export default function ChatbotClient() {
             </div>
           )}
         </section>
+        )}
 
         {/* Conversation */}
         {activeTab === "chat" && (
-        <section aria-label="Conversation" className="flex min-h-0 flex-col overflow-hidden rounded-[26px] border border-black/5 bg-white shadow-[0_18px_50px_-36px_rgba(0,0,0,0.35)]">
+        <section aria-label="Conversation" className="relative z-10 flex min-h-0 flex-col overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/95 shadow-[0_30px_70px_-40px_rgba(120,50,20,0.35)] backdrop-blur">
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
             {!hasChatStarted ? (
               <div className="mx-auto flex min-h-full max-w-xl flex-col">
                 <div className="my-auto py-1">
-                <div className="mb-4 text-center sm:mb-5">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#70B040]/10 px-3 py-1 text-[11px] font-bold text-[#4E8732]">
-                    <Sparkles size={12} /> Official festival assistant
+                <div className="mb-6 flex flex-col items-center text-center sm:mb-8">
+                  <div className="relative">
+                    <div aria-hidden className="absolute inset-0 -z-10 scale-[1.9] rounded-full bg-[radial-gradient(closest-side,rgba(240,149,42,0.28),transparent)]" />
+                    <BrandMark className="h-16 w-16 sm:h-[72px] sm:w-[72px]" glow />
+                  </div>
+                  <span className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-[#F0952A]/25 bg-[#FFF4E8] px-3 py-1 text-[11px] font-bold text-[#C2521F]">
+                    <Sparkles size={12} className="text-[#F0952A]" />
+                    Official festival assistant
                   </span>
-                  <h2 className="mt-3 text-lg font-black tracking-tight sm:text-2xl">
-                    {activeTab === "character" ? "Talk with the 3D host" : "Ask anything about Funoon Fiesta"}
+                  <h2 className="mt-3 text-[22px] font-black leading-tight tracking-tight text-[#1E1B18] sm:text-[30px]">
+                    {isCharacterMode ? (
+                      "Talk with the 3D host"
+                    ) : (
+                      <>
+                        Ask anything about{" "}
+                        <span className="bg-[linear-gradient(120deg,#D9383F,#F0952A)] bg-clip-text text-transparent">Funoon Fiesta</span>
+                      </>
+                    )}
                   </h2>
-                  <p className="mt-1.5 hidden text-[13px] leading-relaxed text-[#6A7065] sm:block">
-                    {activeTab === "character"
+                  <p className="mt-2 max-w-md text-[13px] leading-relaxed text-[#7A716A] sm:text-sm">
+                    {isCharacterMode
                       ? "Tap the microphone and ask in Malayalam. The host will answer aloud."
-                      : "Get detailed written answers about scores, results and programs, in English or Malayalam."}
+                      : "Scores, results, programs and rules — answered instantly in English or Malayalam."}
                   </p>
                 </div>
-                {activeTab === "character" ? (
+                {isCharacterMode ? (
                   <div className="mx-auto flex max-w-md items-center justify-center gap-3 rounded-2xl border border-[#70B040]/15 bg-[#70B040]/[0.06] px-4 py-3 text-center">
                     <Mic size={18} className="shrink-0 text-[#4E8732]" aria-hidden="true" />
                     <p className="text-[13px] font-medium leading-relaxed text-[#53614C]">
@@ -858,21 +885,23 @@ export default function ChatbotClient() {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                     {CHAT_SUGGESTIONS.map((item) => (
                       <button
                         key={item.label}
                         onClick={() => sendText(item.text)}
                         disabled={isLoading || isListening}
-                        className="group flex items-center gap-2.5 rounded-2xl border border-black/[0.06] bg-[#FAFAF7] p-2.5 text-left sm:items-start sm:gap-3 sm:p-3 transition hover:border-[#70B040]/50 hover:bg-white hover:shadow-sm active:scale-[0.99] disabled:opacity-60"
+                        className="group relative flex flex-col items-start gap-2.5 overflow-hidden rounded-[20px] border border-black/[0.06] bg-white p-3 text-left sm:flex-row sm:gap-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition duration-200 hover:-translate-y-0.5 hover:border-[#F0952A]/40 hover:shadow-[0_14px_30px_-18px_rgba(217,56,63,0.45)] active:translate-y-0 disabled:pointer-events-none disabled:opacity-60 sm:items-start sm:p-4"
                       >
-                        <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br", item.color)}>
-                          <item.icon size={15} />
+                        <PremiumIcon icon={item.icon} tile={item.tile} />
+                        <span className="min-w-0 flex-1 sm:pr-5">
+                          <span className="block text-[13.5px] font-bold leading-tight text-[#1E1B18] sm:text-[14px]">{item.label}</span>
+                          <span className="mt-1 hidden text-[12.5px] leading-snug text-[#857B73] sm:block">{item.text}</span>
                         </span>
-                        <span className="min-w-0">
-                          <span className="block text-[12.5px] font-bold leading-tight sm:text-[13px]">{item.label}</span>
-                          <span className="mt-0.5 hidden text-[12px] leading-snug text-[#767C71] sm:block">{item.text}</span>
-                        </span>
+                        <ArrowUpRight
+                          size={16}
+                          className="absolute right-3 top-3 text-[#C9BFB6] transition duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#E0522F]"
+                        />
                       </button>
                     ))}
                   </div>
@@ -890,21 +919,19 @@ export default function ChatbotClient() {
                     className={cn("flex gap-2.5", msg.role === "user" ? "justify-end" : "justify-start")}
                   >
                     {msg.role === "assistant" && (
-                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#70B040] to-[#397D27] text-white">
-                        <Bot size={15} />
-                      </span>
+                      <BrandMark className="mt-0.5 h-8 w-8" small />
                     )}
                     <div className={cn("min-w-0 max-w-[86%] sm:max-w-[80%]", msg.role === "user" && "flex flex-col items-end")}>
                       <div
                         className={cn(
                           "text-[14px] leading-relaxed",
                           msg.role === "user"
-                            ? "rounded-2xl rounded-br-md bg-[#2E4A26] px-4 py-2.5 text-white"
-                            : "rounded-2xl rounded-tl-md bg-[#F3F5EF] px-4 py-3 text-[#1F241C]",
+                            ? "rounded-[20px] rounded-br-md bg-[linear-gradient(135deg,#D9383F,#EC7A2E)] px-4 py-2.5 text-white shadow-[0_10px_24px_-14px_rgba(217,56,63,0.7)]"
+                            : "rounded-[20px] rounded-tl-md border border-black/[0.05] bg-[#FAF7F3] px-4 py-3 text-[#26211D]",
                         )}
                       >
                         {msg.role === "assistant" && msg.mode === "chat" ? (
-                          <div className="break-words [&_h1]:mb-1 [&_h1]:text-base [&_h1]:font-bold [&_h2]:mb-1 [&_h2]:font-bold [&_h3]:font-bold [&_li]:my-0.5 [&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1.5 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_strong]:font-bold [&_table]:my-2 [&_table]:w-full [&_table]:text-[13px] [&_td]:border-t [&_td]:border-black/5 [&_td]:py-1 [&_td]:pr-3 [&_th]:pr-3 [&_th]:text-left [&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5 [&_a]:font-semibold [&_a]:text-[#4E8732] [&_a]:underline">
+                          <div className="break-words [&_h1]:mb-1 [&_h1]:text-base [&_h1]:font-bold [&_h2]:mb-1 [&_h2]:font-bold [&_h3]:font-bold [&_li]:my-0.5 [&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1.5 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_strong]:font-bold [&_table]:my-2 [&_table]:w-full [&_table]:text-[13px] [&_td]:border-t [&_td]:border-black/5 [&_td]:py-1 [&_td]:pr-3 [&_th]:pr-3 [&_th]:text-left [&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5 [&_a]:font-semibold [&_a]:text-[#D9383F] [&_strong]:text-[#1E1B18] [&_a]:underline">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                           </div>
                         ) : (
@@ -930,16 +957,14 @@ export default function ChatbotClient() {
 
                 {isLoading && (
                   <div className="flex items-center gap-2.5" aria-label="The host is preparing an answer">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#70B040] to-[#397D27] text-white">
-                      <Bot size={15} />
-                    </span>
-                    <div className="flex items-center gap-2 rounded-2xl rounded-tl-md bg-[#F3F5EF] px-4 py-3">
+                    <BrandMark className="h-8 w-8" small />
+                    <div className="flex items-center gap-2 rounded-[20px] rounded-tl-md border border-black/[0.05] bg-[#FAF7F3] px-4 py-3">
                       <span className="flex gap-1" aria-hidden>
                         {[0, 1, 2].map((i) => (
-                          <span key={i} className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#70B040]" style={{ animationDelay: `${i * 0.15}s` }} />
+                          <span key={i} className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#E8742F]" style={{ animationDelay: `${i * 0.15}s` }} />
                         ))}
                       </span>
-                      <span className="text-[12px] font-medium text-[#6A7065]">Checking festival records…</span>
+                      <span className="text-[12px] font-medium text-[#857B73]">Checking festival records…</span>
                     </div>
                   </div>
                 )}
@@ -949,13 +974,13 @@ export default function ChatbotClient() {
           </div>
 
           {/* Composer */}
-          <div className="shrink-0 border-t border-black/5 bg-white p-3 sm:p-4">
+          <div className="shrink-0 bg-gradient-to-t from-white via-white to-white/0 p-3 pt-2 sm:p-5 sm:pt-3">
             {voiceInputNotice && (
-              <p role="status" className="mb-2 text-center text-xs font-medium text-amber-700">
+              <p role="status" className="mx-auto mb-2 w-fit rounded-full bg-[#FFF4E8] px-3 py-1 text-center text-xs font-medium text-[#B4481B]">
                 {voiceInputNotice}
               </p>
             )}
-            {activeTab === "character" ? (
+            {isCharacterMode ? (
               <div className="mx-auto flex max-w-2xl flex-col items-center gap-2">
                 <button
                   type="button"
@@ -987,7 +1012,7 @@ export default function ChatbotClient() {
               <>
                 <form
                   onSubmit={handleComposerSubmit}
-                  className="mx-auto flex max-w-2xl items-end gap-2 rounded-2xl border border-black/10 bg-[#FAFAF7] p-1.5 transition focus-within:border-[#70B040] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#70B040]/10"
+                  className="mx-auto flex max-w-2xl items-end gap-2 rounded-[22px] border border-black/[0.08] bg-white p-2 shadow-[0_12px_32px_-18px_rgba(120,50,20,0.35)] transition focus-within:border-[#F0952A]/60 focus-within:ring-4 focus-within:ring-[#F0952A]/12"
                 >
                   <button
                     type="button"
@@ -996,12 +1021,12 @@ export default function ChatbotClient() {
                     aria-label={isListening ? "Stop listening and send" : "Ask by voice"}
                     aria-pressed={isListening}
                     className={cn(
-                      "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition active:scale-95 disabled:opacity-50",
-                      isListening ? "bg-sky-500 text-white" : "text-[#5C6656] hover:bg-[#70B040]/10 hover:text-[#4E8732]",
+                      "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition active:scale-95 disabled:opacity-50",
+                      isListening ? "bg-[#D9383F] text-white" : "bg-[#FFF1E6] text-[#D9531F] hover:bg-[#FFE4CF]",
                     )}
                   >
-                    {isListening && <span className="absolute inset-0 animate-ping rounded-xl bg-sky-400/40" />}
-                    <Mic size={19} className="relative" />
+                    {isListening && <span className="absolute inset-0 animate-ping rounded-full bg-[#D9383F]/35" />}
+                    <Mic size={18} strokeWidth={2.2} className="relative" />
                   </button>
                   <textarea
                     ref={textareaRef}
@@ -1010,20 +1035,20 @@ export default function ChatbotClient() {
                     onKeyDown={handleKeyDown}
                     rows={1}
                     disabled={isListening}
-                    placeholder={isListening ? "Listening… tap the mic again to send" : "Ask about scores, results, programs…"}
+                    placeholder={isListening ? "Listening… tap the mic to send" : "Ask about scores, results…"}
                     aria-label="Your question"
-                    className="max-h-[140px] min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-[15px] leading-6 text-[#20251D] outline-none placeholder:text-[#9EA398]"
+                    className="max-h-[140px] min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-[15px] leading-6 text-[#1E1B18] outline-none placeholder:text-[#B3A99F]"
                   />
                   <button
                     type="submit"
                     disabled={isLoading || isListening || !input.trim()}
                     aria-label="Send"
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#70B040] text-white shadow-sm transition hover:bg-[#5F9630] active:scale-95 disabled:bg-black/[0.06] disabled:text-black/30 disabled:shadow-none"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#D9383F,#F0952A)] text-white shadow-[0_8px_18px_-8px_rgba(217,56,63,0.8)] transition hover:brightness-110 active:scale-95 disabled:bg-none disabled:bg-[#F1ECE7] disabled:text-[#C2B8AE] disabled:shadow-none"
                   >
-                    <ArrowUp size={18} strokeWidth={2.5} />
+                    <ArrowUp size={18} strokeWidth={2.6} />
                   </button>
                 </form>
-                <p className="mx-auto mt-2 hidden max-w-2xl text-center text-[11px] text-[#9AA094] sm:block">
+                <p className="mx-auto mt-2.5 hidden max-w-2xl text-center text-[11px] text-[#ADA399] sm:block">
                   Detailed written answers · Enter to send, Shift + Enter for a new line
                 </p>
               </>
@@ -1093,8 +1118,8 @@ function IconToggle({
       aria-label={label}
       title={label}
       className={cn(
-        "flex h-10 w-10 items-center justify-center rounded-xl border transition active:scale-95",
-        active ? "border-[#D7E9CC] bg-[#F0F8EA] text-[#4E8732]" : "border-black/[0.07] bg-white text-[#6F766A] hover:bg-[#F6F7F3]",
+        "flex h-10 w-10 items-center justify-center rounded-full border transition active:scale-95",
+        active ? "border-[#F0952A]/30 bg-[#FFF1E6] text-[#D9531F]" : "border-black/[0.07] bg-white text-[#7A716A] hover:bg-[#FBF6F1] hover:text-[#1E1B18]",
       )}
     >
       {children}
@@ -1137,9 +1162,47 @@ function MessageAction({ onClick, label, children }: { onClick: () => void; labe
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex h-7 w-7 items-center justify-center rounded-lg text-[#8A9085] transition hover:bg-black/5 hover:text-[#2E4A26]"
+      className="flex h-7 w-7 items-center justify-center rounded-lg text-[#A1968C] transition hover:bg-[#FFF1E6] hover:text-[#D9531F]"
     >
       {children}
     </button>
+  );
+}
+
+/** Funoon Fiesta mark on a white disc with a brand-gradient ring. */
+function BrandMark({ className, small, glow }: { className?: string; small?: boolean; glow?: boolean }) {
+  return (
+    <span
+      className={cn(
+        "relative flex shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#D9383F,#F0952A,#8CC63F)] p-[2px]",
+        glow && "shadow-[0_14px_30px_-12px_rgba(217,56,63,0.55)]",
+        className,
+      )}
+    >
+      <span className="flex h-full w-full items-center justify-center rounded-full bg-white">
+        <Image
+          src="/img/brand-logo-transparent.png"
+          alt=""
+          width={64}
+          height={64}
+          className={cn("h-auto object-contain", small ? "w-[72%]" : "w-[70%]")}
+        />
+      </span>
+    </span>
+  );
+}
+
+/** Glossy app-style icon tile: gradient fill, inner highlight and a coloured soft shadow. */
+function PremiumIcon({ icon: Icon, tile }: { icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>; tile: string }) {
+  return (
+    <span
+      className={cn(
+        "relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br text-white shadow-lg ring-1 ring-inset ring-white/25 transition duration-200 group-hover:scale-105 sm:h-12 sm:w-12",
+        tile,
+      )}
+    >
+      <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent" />
+      <Icon size={21} strokeWidth={2.1} className="relative drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]" />
+    </span>
   );
 }
