@@ -78,17 +78,16 @@ export function FestieHeroSection() {
 
           {/* ══════════ Content ══════════ */}
           <div className="relative z-20 flex flex-col px-6 pb-[min(80vw,350px)] pt-28 sm:px-12 sm:pt-36 md:pb-[300px] lg:max-w-[74%] lg:px-0 lg:pb-24 lg:pl-[clamp(3rem,6.6vw,5.75rem)] lg:pt-[clamp(10rem,18vh,15.5rem)]">
-            {/* Partner logos */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 sm:gap-x-5">
-              <Image src="/img/brand-logo-transparent.png" alt="Funoon Fiesta" width={44} height={44} className="h-9 w-auto [filter:brightness(0)_invert(1)] sm:h-10" />
-              <Image src="/img/hero/hero-fiesta-logo.png" alt="Fiesta" width={27} height={39} className="h-9 w-auto sm:h-10" />
-              <Image src="/img/hero/hero-nisb-seal.png" alt="NISB" width={39} height={39} className="h-9 w-auto sm:h-10" />
-              <p className="font-hero-sans text-[17px] font-semibold leading-[0.95] text-white sm:text-[19px]">
-                Funoon
-                <br />
-                Fiesta ‘26
-              </p>
-              <Image src="/img/hero/hero-tagline.png" alt="കാതിലാ കാലത്തെ ഔൽ!" width={72} height={40} className="h-9 w-auto sm:h-10" />
+            {/* Partner branding banner strip */}
+            <div className="flex items-center">
+              <Image
+                src="/img/hero/hero-partners.png"
+                alt="Funoon Fiesta & Partner Logos"
+                width={1024}
+                height={117}
+                priority
+                className="h-9 w-auto max-w-full object-contain sm:h-11 md:h-12 lg:h-[52px]"
+              />
             </div>
 
             {/* Title */}
