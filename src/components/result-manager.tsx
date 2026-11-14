@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { CheckCircle2, Eye, Pencil, Search, Trash2, Calendar, User, Award, Table, FileText } from "lucide-react";
+import { CheckCircle2, Eye, Pencil, Search, Trash2, Calendar, User, Award, Table, FileText, Calculator, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -153,6 +153,53 @@ export const ResultManager = React.memo(function ResultManager({
     return getWinnerName(entry);
   }, [getWinnerName]);
 
+  const getTeamImpactSummary = useCallback((result: ResultRecord) => {
+    const map = new Map<string, { name: string; color: string; points: number; penalty: number; positions: number[] }>();
+
+    result.entries.forEach((entry) => {
+      let teamId = entry.team_id;
+      if (!teamId && entry.student_id) {
+        teamId = studentMap.get(entry.student_id)?.team_id;
+      }
+      if (teamId) {
+        const team = teamMap.get(teamId);
+        const current = map.get(teamId) || {
+          name: team?.name || "Team",
+          color: team?.color || "#4F46E5",
+          points: 0,
+          penalty: 0,
+          positions: [],
+        };
+        current.points += entry.score;
+        if (!current.positions.includes(entry.position)) {
+          current.positions.push(entry.position);
+        }
+        map.set(teamId, current);
+      }
+    });
+
+    result.penalties?.forEach((pen) => {
+      let teamId = pen.team_id;
+      if (!teamId && pen.student_id) {
+        teamId = studentMap.get(pen.student_id)?.team_id;
+      }
+      if (teamId) {
+        const team = teamMap.get(teamId);
+        const current = map.get(teamId) || {
+          name: team?.name || "Team",
+          color: team?.color || "#4F46E5",
+          points: 0,
+          penalty: 0,
+          positions: [],
+        };
+        current.penalty += pen.points;
+        map.set(teamId, current);
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.points - a.points);
+  }, [studentMap, teamMap]);
+
   const handleExport = useCallback((type: "csv" | "pdf") => {
     const data = sortedResults.map((result) => {
       const programName = programMap.get(result.program_id)?.name ?? "Unknown Program";
@@ -230,7 +277,47 @@ export const ResultManager = React.memo(function ResultManager({
             </Button>
           </div>
         )}
+        {isPending && (
+          <div className="flex gap-2">
+            <Link href="/admin/precalculated-scores">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="gap-2 bg-fuchsia-600/20 text-fuchsia-200 hover:bg-fuchsia-600/30 border-fuchsia-500/30"
+              >
+                <Calculator className="h-4 w-4 text-fuchsia-400" />
+                Pre-calculate Scores ({results.length})
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
+
+      {isPending && results.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-fuchsia-500/20 bg-linear-to-r from-fuchsia-950/30 via-slate-900/40 to-indigo-950/30 p-4 text-xs text-white/80">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30 shrink-0">
+              <Calculator className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-semibold text-white">Pre-calculate Standings Before Approving</p>
+              <p className="text-white/60">
+                Preview how these {results.length} pending submissions will impact team points, medals, and standings before publishing them to the public scoreboard.
+              </p>
+            </div>
+          </div>
+          <Link href="/admin/precalculated-scores">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="shrink-0 gap-1.5 bg-fuchsia-500/20 text-fuchsia-200 hover:bg-fuchsia-500/30 border-fuchsia-500/30 text-xs"
+            >
+              Open Simulator
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
+        </div>
+      )}
 
       <div className="grid gap-3 md:grid-cols-4">
         <div className="relative z-20 md:col-span-2 flex items-center rounded-2xl border border-white/10 bg-white/5 px-4 transition-all duration-200 hover:border-white/20 focus-within:border-fuchsia-400/50 focus-within:ring-2 focus-within:ring-fuchsia-400/30 focus-within:bg-white/10">
@@ -409,6 +496,42 @@ export const ResultManager = React.memo(function ResultManager({
                   )}
                 </div>
               </div>
+
+              {isPending && (
+                <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] uppercase tracking-wider text-white/50 font-semibold flex items-center gap-1">
+                      <Calculator className="h-3 w-3 text-fuchsia-400" />
+                      Pre-calculated Impact:
+                    </span>
+                    {getTeamImpactSummary(result).map((t, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 px-2.5 py-1 border border-white/10 text-xs"
+                      >
+                        <span
+                          className="h-2 w-2 rounded-full shrink-0"
+                          style={{ backgroundColor: t.color }}
+                        />
+                        <span className="text-white font-medium">{t.name}:</span>
+                        <span className="font-bold text-emerald-400">+{t.points} pts</span>
+                        {t.penalty > 0 && (
+                          <span className="text-rose-400 font-semibold">(-{t.penalty} pen)</span>
+                        )}
+                        <span className="text-white/40 text-[10px]">
+                          ({t.positions.map((p) => (p === 1 ? "1st" : p === 2 ? "2nd" : "3rd")).join(", ")})
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                  <Link
+                    href="/admin/precalculated-scores"
+                    className="text-[11px] text-fuchsia-300 hover:text-fuchsia-200 flex items-center gap-1 ml-auto"
+                  >
+                    Simulate Standings <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              )}
             </div>
           );
         })}

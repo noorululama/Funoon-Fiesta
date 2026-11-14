@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, CheckCircle2, Clock } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, Clock, Calculator } from "lucide-react";
 
 import { LiveScorePie } from "@/components/live-score-pie";
 import { Badge } from "@/components/ui/badge";
@@ -101,6 +101,15 @@ export default async function AdminDashboardPage() {
             >
               View Approved
             </Link>
+            {data.pending.length > 0 && (
+              <Link
+                href="/admin/precalculated-scores"
+                className="inline-flex items-center gap-2 rounded-full bg-fuchsia-600/30 border border-fuchsia-500/40 px-5 py-2 text-sm font-semibold text-fuchsia-100 hover:bg-fuchsia-600/50"
+              >
+                <Calculator className="h-4 w-4 text-fuchsia-300" />
+                Pre-calculate Scores ({data.pending.length})
+              </Link>
+            )}
           </div>
         </div>
         <div className="rounded-3xl border border-white/10 bg-slate-900/70 p-6">

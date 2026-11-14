@@ -14,6 +14,7 @@ const adminNav: SidebarItem[] = [
   { href: "/admin/assign", label: "Assignments", icon: "assignments" },
   { href: "/admin/add-result", label: "Add Result", icon: "addResult" },
   { href: "/admin/pending-results", label: "Pending Results", icon: "pending" },
+  { href: "/admin/precalculated-scores", label: "Pre-calculated Scores", icon: "calculator" },
   { href: "/admin/approved-results", label: "Approved Results", icon: "approved" },
   { href: "/admin/poster-templates", label: "Poster Templates", icon: "posters" },
   { href: "/admin/polls", label: "Polls", icon: "polls" },
