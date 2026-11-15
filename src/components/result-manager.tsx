@@ -498,185 +498,191 @@ export const ResultManager = React.memo(function ResultManager({
               </div>
 
               {isPending && (
-                <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] uppercase tracking-wider text-white/50 font-semibold flex items-center gap-1">
-                      <Calculator className="h-3 w-3 text-fuchsia-400" />
-                      Pre-calculated Impact:
-                    </span>
-                    {getTeamImpactSummary(result).map((t, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 px-2.5 py-1 border border-white/10 text-xs"
-                      >
-                        <span
-                          className="h-2 w-2 rounded-full shrink-0"
-                          style={{ backgroundColor: t.color }}
-                        />
-                        <span className="text-white font-medium">{t.name}:</span>
-                        <span className="font-bold text-emerald-400">+{t.points} pts</span>
-                        {t.penalty > 0 && (
-                          <span className="text-rose-400 font-semibold">(-{t.penalty} pen)</span>
-                        )}
-                        <span className="text-white/40 text-[10px]">
-                          ({t.positions.map((p) => (p === 1 ? "1st" : p === 2 ? "2nd" : "3rd")).join(", ")})
-                        </span>
+                  <div className="mt-3 pt-3 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] uppercase tracking-wider text-white/50 font-semibold flex items-center gap-1">
+                        <Calculator className="h-3 w-3 text-fuchsia-400" />
+                        Pre-calculated Impact:
                       </span>
-                    ))}
+                      {getTeamImpactSummary(result).map((t, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 px-2.5 py-1 border border-white/10 text-xs"
+                        >
+                          <span
+                            className="h-2 w-2 rounded-full shrink-0"
+                            style={{ backgroundColor: t.color }}
+                          />
+                          <span className="text-white font-medium">{t.name}:</span>
+                          <span className="font-bold text-emerald-400">+{t.points} pts</span>
+                          {t.penalty > 0 && (
+                            <span className="text-rose-400 font-semibold">(-{t.penalty} pen)</span>
+                          )}
+                          <span className="text-white/40 text-[10px]">
+                            ({t.positions.map((p) => (p === 1 ? "1st" : p === 2 ? "2nd" : "3rd")).join(", ")})
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                    <Link
+                      href="/admin/precalculated-scores"
+                      className="text-[11px] text-fuchsia-300 hover:text-fuchsia-200 flex items-center gap-1 sm:ml-auto self-end sm:self-auto"
+                    >
+                      Simulate Standings <ArrowUpRight className="h-3 w-3" />
+                    </Link>
                   </div>
-                  <Link
-                    href="/admin/precalculated-scores"
-                    className="text-[11px] text-fuchsia-300 hover:text-fuchsia-200 flex items-center gap-1 ml-auto"
-                  >
-                    Simulate Standings <ArrowUpRight className="h-3 w-3" />
-                  </Link>
-                </div>
               )}
-            </div>
-          );
+                </div>
+              );
         })}
-      </div>
+            </div>
 
-      {sortedResults.length === 0 && (
-        <div className="py-12 text-center">
-          <Award className="h-12 w-12 text-white/20 mx-auto mb-4" />
-          <p className="text-white/60">No results found matching your filters.</p>
-        </div>
-      )}
+      {
+            sortedResults.length === 0 && (
+              <div className="py-12 text-center">
+                <Award className="h-12 w-12 text-white/20 mx-auto mb-4" />
+                <p className="text-white/60">No results found matching your filters.</p>
+              </div>
+            )
+          }
 
-      {totalPages > 1 && (
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="text-sm text-white/60">
-            Showing {showingFrom} to {showingTo} of {sortedResults.length} results
-          </p>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={page === 1}
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-            >
-              Previous
-            </Button>
-            <div className="flex items-center gap-2">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (page <= 3) {
-                  pageNum = i + 1;
-                } else if (page >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = page - 2 + i;
-                }
-                return (
-                  <button
-                    key={pageNum}
+          {
+            totalPages > 1 && (
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <p className="text-sm text-white/60">
+                  Showing {showingFrom} to {showingTo} of {sortedResults.length} results
+                </p>
+                <div className="flex gap-2">
+                  <Button
                     type="button"
-                    onClick={() => setPage(pageNum)}
-                    className={`w-8 h-8 rounded-lg text-sm transition ${page === pageNum
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                      : "border border-white/10 text-white/60 hover:text-white hover:border-white/20"
-                      }`}
+                    variant="ghost"
+                    size="sm"
+                    disabled={page === 1}
+                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                   >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={page === totalPages}
-              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* View Modal */}
-      {viewResult && (
-        <Modal
-          open={!!viewResult}
-          title={`Result Details - ${programMap.get(viewResult.program_id)?.name ?? "Unknown"}`}
-          onClose={() => setViewResult(null)}
-        >
-          <div className="space-y-4">
-            <div className="grid gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-              <p className="text-sm text-white/60">Program</p>
-              <p className="font-semibold text-white">
-                {programMap.get(viewResult.program_id)?.name ?? "Unknown"}
-              </p>
-              <p className="text-sm text-white/60">Jury</p>
-              <p className="font-semibold text-white">
-                {juryMap.get(viewResult.jury_id)?.name ?? "Unknown"}
-              </p>
-              <p className="text-sm text-white/60">Submitted</p>
-              <p className="font-semibold text-white">
-                {new Date(viewResult.submitted_at).toLocaleString()}
-              </p>
-              <p className="text-sm text-white/60">Total Score</p>
-              <p className="text-2xl font-bold text-emerald-300">{getTotalScore(viewResult)}</p>
-            </div>
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-white">Winners</p>
-              {viewResult.entries.map((entry) => {
-                const winnerName = getWinnerName(entry);
-                const student = entry.student_id ? studentMap.get(entry.student_id) : undefined;
-                const team = entry.team_id ? teamMap.get(entry.team_id) : undefined;
-                return (
-                  <div
-                    key={entry.position}
-                    className="rounded-xl border border-white/10 bg-white/5 p-4"
-                  >
-                    <p className="text-sm uppercase text-white/50">
-                      {entry.position === 1 ? "1st Place" : entry.position === 2 ? "2nd Place" : "3rd Place"}
-                    </p>
-                    <p className="text-lg font-semibold text-white mt-1">{winnerName}</p>
-                    {student && (
-                      <p className="text-xs text-white/60 mt-1">Chest #{student.chest_no}</p>
-                    )}
-                    {entry.grade && entry.grade !== "none" && (
-                      <p className="text-xs text-white/60 mt-1">Grade: {entry.grade}</p>
-                    )}
-                    <p className="text-sm text-emerald-300 mt-2">Score: {entry.score}</p>
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (page <= 3) {
+                        pageNum = i + 1;
+                      } else if (page >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = page - 2 + i;
+                      }
+                      return (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          onClick={() => setPage(pageNum)}
+                          className={`w-8 h-8 rounded-lg text-sm transition ${page === pageNum
+                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                            : "border border-white/10 text-white/60 hover:text-white hover:border-white/20"
+                            }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
                   </div>
-                );
-              })}
-              {(viewResult.penalties?.length ?? 0) > 0 && (
-                <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 space-y-2">
-                  <p className="text-sm font-semibold text-red-200">Minus points</p>
-                  {viewResult.penalties?.map((penalty, index) => {
-                    const student = penalty.student_id ? studentMap.get(penalty.student_id) : undefined;
-                    const team = penalty.team_id ? teamMap.get(penalty.team_id) : undefined;
-                    return (
-                      <div key={`${penalty.team_id ?? penalty.student_id ?? index}`} className="text-sm text-white/80">
-                        <p className="font-semibold">
-                          {student?.name ?? team?.name ?? "Unknown"} · -{penalty.points} pts
-                        </p>
-                        {student && (
-                          <p className="text-xs text-white/50">
-                            Chest #{student.chest_no} · Team {teamMap.get(student.team_id)?.name ?? "Unknown"}
-                          </p>
-                        )}
-                        {!student && team && (
-                          <p className="text-xs text-white/50">Team ID: {team.id}</p>
-                        )}
-                      </div>
-                    );
-                  })}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={page === totalPages}
+                    onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  >
+                    Next
+                  </Button>
                 </div>
-              )}
-            </div>
-          </div>
-        </Modal>
-      )}
+              </div>
+            )
+          }
+
+          {/* View Modal */ }
+          {
+            viewResult && (
+              <Modal
+                open={!!viewResult}
+                title={`Result Details - ${programMap.get(viewResult.program_id)?.name ?? "Unknown"}`}
+                onClose={() => setViewResult(null)}
+              >
+                <div className="space-y-4">
+                  <div className="grid gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+                    <p className="text-sm text-white/60">Program</p>
+                    <p className="font-semibold text-white">
+                      {programMap.get(viewResult.program_id)?.name ?? "Unknown"}
+                    </p>
+                    <p className="text-sm text-white/60">Jury</p>
+                    <p className="font-semibold text-white">
+                      {juryMap.get(viewResult.jury_id)?.name ?? "Unknown"}
+                    </p>
+                    <p className="text-sm text-white/60">Submitted</p>
+                    <p className="font-semibold text-white">
+                      {new Date(viewResult.submitted_at).toLocaleString()}
+                    </p>
+                    <p className="text-sm text-white/60">Total Score</p>
+                    <p className="text-2xl font-bold text-emerald-300">{getTotalScore(viewResult)}</p>
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-white">Winners</p>
+                    {viewResult.entries.map((entry) => {
+                      const winnerName = getWinnerName(entry);
+                      const student = entry.student_id ? studentMap.get(entry.student_id) : undefined;
+                      const team = entry.team_id ? teamMap.get(entry.team_id) : undefined;
+                      return (
+                        <div
+                          key={entry.position}
+                          className="rounded-xl border border-white/10 bg-white/5 p-4"
+                        >
+                          <p className="text-sm uppercase text-white/50">
+                            {entry.position === 1 ? "1st Place" : entry.position === 2 ? "2nd Place" : "3rd Place"}
+                          </p>
+                          <p className="text-lg font-semibold text-white mt-1">{winnerName}</p>
+                          {student && (
+                            <p className="text-xs text-white/60 mt-1">Chest #{student.chest_no}</p>
+                          )}
+                          {entry.grade && entry.grade !== "none" && (
+                            <p className="text-xs text-white/60 mt-1">Grade: {entry.grade}</p>
+                          )}
+                          <p className="text-sm text-emerald-300 mt-2">Score: {entry.score}</p>
+                        </div>
+                      );
+                    })}
+                    {(viewResult.penalties?.length ?? 0) > 0 && (
+                      <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 space-y-2">
+                        <p className="text-sm font-semibold text-red-200">Minus points</p>
+                        {viewResult.penalties?.map((penalty, index) => {
+                          const student = penalty.student_id ? studentMap.get(penalty.student_id) : undefined;
+                          const team = penalty.team_id ? teamMap.get(penalty.team_id) : undefined;
+                          return (
+                            <div key={`${penalty.team_id ?? penalty.student_id ?? index}`} className="text-sm text-white/80">
+                              <p className="font-semibold">
+                                {student?.name ?? team?.name ?? "Unknown"} · -{penalty.points} pts
+                              </p>
+                              {student && (
+                                <p className="text-xs text-white/50">
+                                  Chest #{student.chest_no} · Team {teamMap.get(student.team_id)?.name ?? "Unknown"}
+                                </p>
+                              )}
+                              {!student && team && (
+                                <p className="text-xs text-white/50">Team ID: {team.id}</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Modal>
+            )
+          }
     </div>
-  );
+      );
 });
 

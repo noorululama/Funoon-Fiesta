@@ -237,7 +237,7 @@ return (
       </div>
 
       {/* Executive Summary KPIs */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {/* Current Leader */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
           <p className="text-xs uppercase tracking-wider text-white/50">Current Public Leader</p>
@@ -364,7 +364,7 @@ return (
             </div>
 
             {/* Main Tab Selector */}
-            <div className="flex items-center gap-1 rounded-xl bg-white/5 p-1 border border-white/10 self-start md:self-auto">
+            <div className="flex items-center gap-1 rounded-2xl bg-white/5 p-1 border border-white/10 self-start md:self-auto">
               <button
                 type="button"
                 onClick={() => setActiveTab("teams")}
