@@ -83,12 +83,16 @@ User Query: ${message}
                         model: modelName,
                         generationConfig: {
                             temperature: 0.25,
-                            maxOutputTokens: 220,
+                            maxOutputTokens: 180,
                         }
                     });
                     const result = await model.generateContentStream(systemPrompt);
                     const iterator = result.stream[Symbol.asyncIterator]();
-                    const first = await iterator.next();
+                    // A model that does not start streaming within 6s is skipped, so the host never hangs.
+                    const first = await Promise.race([
+                        iterator.next(),
+                        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("first chunk timeout")), 6000)),
+                    ]);
                     if (first.done || !first.value) continue;
                     selectedIterator = iterator;
                     firstChunk = first.value;

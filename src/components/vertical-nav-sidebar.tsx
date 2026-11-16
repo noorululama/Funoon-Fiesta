@@ -5,21 +5,21 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  Home,
+  House,
   Trophy,
-  BarChart3,
-  Search,
-  Bot
+  ChartColumn,
+  UserSearch,
+  BotMessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navItems = [
-  { href: "/", label: "Home", icon: Home },
+  { href: "/", label: "Home", icon: House },
   { href: "/results", label: "Results", icon: Trophy },
-  { href: "/scoreboard", label: "Scoreboard", icon: BarChart3 },
-  { href: "/participant", label: "Find Participant", icon: Search },
-  { href: "/chatbot", label: "AI Assistant", icon: Bot },
+  { href: "/scoreboard", label: "Scoreboard", icon: ChartColumn },
+  { href: "/participant", label: "Find Participant", icon: UserSearch },
+  { href: "/chatbot", label: "AI Assistant", icon: BotMessageSquare },
 ];
 
 export function VerticalNavSidebar() {
@@ -49,8 +49,8 @@ export function VerticalNavSidebar() {
               cn(
                 "flex-1 h-11 rounded-2xl active:translate-y-0.5",
                 isActive
-                  ? "bg-[#FBFF00] text-[#141414] shadow-[0_3px_0_#A9462A]"
-                  : "text-white/90 hover:bg-white/15 hover:text-white"
+                  ? "bg-white text-[#C72F36] shadow-[0_2px_8px_rgba(80,10,10,0.35)]"
+                  : "text-white/80 hover:bg-white/15 hover:text-white"
               )
         )}
         title={item.label}
@@ -60,8 +60,8 @@ export function VerticalNavSidebar() {
         <Icon
           className={cn(
             "w-5 h-5 transition-all duration-300",
-            isActive && "scale-110",
-            orientation === "horizontal" && isActive && "stroke-[2.4]"
+            isActive && orientation === "vertical" && "scale-110",
+            orientation === "horizontal" && (isActive ? "stroke-[2.2]" : "stroke-[1.8]")
           )}
         />
         {/* Active indicator glow */}
@@ -122,7 +122,7 @@ export function VerticalNavSidebar() {
       <div className="lg:hidden fixed inset-x-0 bottom-6 flex justify-center z-50 px-4 pointer-events-none">
         <nav
           aria-label="Main"
-          className="pointer-events-auto relative w-full max-w-xs overflow-hidden rounded-[24px] border border-white/25 bg-[linear-gradient(135deg,#D9383F_0%,#DE4A3B_35%,#E56C31_70%,#F0952A_100%)] px-2 py-2 flex gap-1.5 shadow-[0_5px_0_#A9362B,0_16px_30px_-8px_rgba(169,54,43,0.55)]"
+          className="pointer-events-auto relative w-full max-w-xs overflow-hidden rounded-[24px] border border-white/20 bg-[linear-gradient(135deg,#C72F36_0%,#D63F38_40%,#E2602F_75%,#EE8A29_100%)] px-2 py-2 flex gap-1.5 shadow-[0_14px_30px_-10px_rgba(150,35,35,0.6)]"
         >
           {/* soft highlight, like the hero card */}
           <span aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_0%,rgba(255,255,255,0.18),transparent_60%)]" />

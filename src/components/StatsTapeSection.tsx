@@ -22,7 +22,7 @@ const TAPE_TEXT = "FUNOON FIESTA ‘26-27";
  */
 export function StatsTapeSection({ stats = DEFAULT_STATS }: { stats?: FestStat[] }) {
   return (
-    <section className="relative overflow-hidden bg-white pb-16 pt-10 sm:pb-20 sm:pt-14">
+    <section className="relative overflow-hidden bg-white pb-16 pt-10 sm:pb-20 sm:pt-14 lg:pt-0">
       {/* dot grid */}
       <div
         aria-hidden
@@ -31,7 +31,7 @@ export function StatsTapeSection({ stats = DEFAULT_STATS }: { stats?: FestStat[]
       />
 
       {/* ══════════ Stats ══════════ */}
-      <dl className="relative mx-auto grid max-w-5xl grid-cols-3 gap-2 px-4 text-center sm:gap-8">
+      <dl className="relative mx-auto grid max-w-5xl grid-cols-3 gap-2 px-4 text-center sm:gap-8 lg:hidden">
         {stats.map((s) => (
           <div key={s.label} className="flex flex-col-reverse items-center">
             <dt className="mt-1 font-hero-sans text-[10px] font-medium uppercase tracking-[0.35em] text-[#5B5B5B] sm:mt-2 sm:text-sm sm:tracking-[0.45em]">
@@ -81,7 +81,7 @@ function Tape({ className, direction }: { className: string; direction: "left" |
 }
 
 /** Counts up from 0 the first time the number scrolls into view (writes to the DOM, no re-renders). */
-function CountUp({ to, duration = 1400 }: { to: number; duration?: number }) {
+export function CountUp({ to, duration = 1400 }: { to: number; duration?: number }) {
   const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {

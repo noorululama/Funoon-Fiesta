@@ -27,18 +27,18 @@ export function HomeRealtime({ teams: initialTeams, liveScores: initialLiveScore
     router.refresh();
   });
 
+  const festStats = [
+    { value: 950, suffix: "+", label: "Participants" },
+    { value: initialTeams.length || 6, label: "Team" },
+    { value: 200, suffix: "+", label: "Programmes" },
+  ];
+
   return (
     <main className="space-y-16">
       {/* Hero + festival numbers share one white block (no gap between them) */}
       <div className="bg-white">
-        <FestieHeroSection />
-        <StatsTapeSection
-          stats={[
-            { value: 950, suffix: "+", label: "Participants" },
-            { value: initialTeams.length || 6, label: "Team" },
-            { value: 200, suffix: "+", label: "Programmes" },
-          ]}
-        />
+        <FestieHeroSection stats={festStats} />
+        <StatsTapeSection stats={festStats} />
       </div>
 
       {/* Live Score Pulse Section */}

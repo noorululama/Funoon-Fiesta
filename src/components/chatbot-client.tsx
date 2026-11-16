@@ -93,8 +93,13 @@ export default function ChatbotClient() {
   const [activeTab, setActiveTab] = useState<AIMode>(SHOW_3D_CHATBOT ? "character" : "chat");
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoadingState] = useState(false);
+  const setIsLoading = (value: boolean) => {
+    isLoadingRef.current = value;
+    setIsLoadingState(value);
+  };
   const [humanState, setHumanState] = useState<HumanState>("idle");
+  const isLoadingRef = useRef(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
@@ -236,7 +241,7 @@ export default function ChatbotClient() {
         if (selectedVoice) {
           utterance.voice = selectedVoice;
           utterance.lang = selectedVoice.lang || "ml-IN";
-          utterance.rate = 0.90;
+          utterance.rate = 1.0;
           utterance.pitch = 0.88;
         } else {
           // Fallback: If no Malayalam voice exists on this OS/device, use Indian voice with its own matching language
@@ -251,12 +256,12 @@ export default function ChatbotClient() {
             utterance.voice = indianVoice;
             utterance.lang = indianVoice.lang;
           }
-          utterance.rate = 0.95;
+          utterance.rate = 1.02;
           utterance.pitch = 0.92;
         }
       } else {
         // English voice selection with male preference
-        utterance.rate = 0.96;
+        utterance.rate = 1.05;
         utterance.pitch = 0.90;
 
         const enVoice = currentVoices.find((v) => {
@@ -281,7 +286,7 @@ export default function ChatbotClient() {
       utterance.onend = () => {
         if (typeof window !== "undefined" && !window.speechSynthesis.speaking) {
           setIsSpeaking(false);
-          setHumanState("idle");
+          setHumanState(isLoadingRef.current ? "thinking" : "idle");
         }
       };
 
@@ -393,7 +398,7 @@ export default function ChatbotClient() {
           return;
         }
 
-        // Fast silence detection: If user pauses for 1.2s after speaking, auto-send without waiting 3-4s!
+        // Fast silence detection: If user pauses for 0.8s after speaking, auto-send without waiting 3-4s!
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = setTimeout(() => {
           const textToSend = currentTranscriptRef.current.trim();
@@ -411,7 +416,7 @@ export default function ChatbotClient() {
               handleSendMessage(textToSend);
             }
           }
-        }, 1200);
+        }, 800);
       };
 
       recognition.onerror = (event: any) => {
@@ -472,6 +477,11 @@ export default function ChatbotClient() {
     setShowSubtitle(true);
     let streamedText = "";
     let queuedSpeech = false;
+    let gotAnswer = false;
+    // If the answer is not here after ~0.9s, say a short acknowledgement so the host never feels frozen.
+    const fillerTimer = setTimeout(() => {
+      if (!gotAnswer) speakText(SPOT_REFLEXES[Math.floor(Math.random() * SPOT_REFLEXES.length)], true, false);
+    }, 900);
 
     try {
       const response = await fetch("/api/chat", {
@@ -487,6 +497,7 @@ export default function ChatbotClient() {
 
       if ((response.headers.get("content-type") ?? "").includes("application/json")) {
         const data = await response.json();
+        gotAnswer = true;
         streamedText = String(data.response ?? "");
         setCharacterResponse(streamedText);
       } else {
@@ -497,6 +508,14 @@ export default function ChatbotClient() {
         let speechBuffer = "";
         const speakCompletedSentences = (flush = false) => {
           let match: RegExpMatchArray | null;
+          // Start talking sooner: the very first spoken chunk may end at a comma.
+          if (!queuedSpeech && !flush) {
+            const early = speechBuffer.match(/^([\s\S]{24,}?[,،])\s+/);
+            if (early && !/[.!?।]\s/.test(early[1])) {
+              speechBuffer = speechBuffer.slice(early[0].length);
+              if (speakText(early[1].trim(), true, false)) queuedSpeech = true;
+            }
+          }
           while ((match = speechBuffer.match(/^([\s\S]*?[.!?।])\s+/))) {
             const sentence = match[1].trim();
             speechBuffer = speechBuffer.slice(match[0].length);
@@ -513,6 +532,7 @@ export default function ChatbotClient() {
           if (done) break;
           const part = decoder.decode(value, { stream: true });
           if (!part) continue;
+          gotAnswer = true;
           streamedText += part;
           speechBuffer += part;
           setCharacterResponse(streamedText);
@@ -542,6 +562,7 @@ export default function ChatbotClient() {
       setShowSubtitle(true);
       if (!speakText(errMsg, true, false)) setHumanState("idle");
     } finally {
+      clearTimeout(fillerTimer);
       setIsLoading(false);
     }
   };

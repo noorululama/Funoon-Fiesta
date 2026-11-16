@@ -4,6 +4,7 @@ import { createHostCharacter } from "./host-character";
 import type { HostCharacter } from "./host-character";
 import { HostAnimator } from "./host-animator";
 import type { HostState } from "./host-animator";
+import { createRobotHost, RobotAnimator } from "./robot-host";
 import { buildStage } from "./host-stage";
 import type { StageBuild } from "./host-stage";
 import { clamp, lerp } from "./host-math";
@@ -14,6 +15,19 @@ import { clamp, lerp } from "./host-math";
  */
 
 export type HostViewMode = "portrait" | "full";
+
+/** true = the "Funoon Festa AI" robot host, false = the human host (kept in code). */
+export const USE_ROBOT_HOST = true;
+
+interface HostRigLike {
+  root: THREE.Group;
+  dispose: () => void;
+}
+interface HostAnimatorLike {
+  update: (dt: number, t: number, inputs: import("./host-animator").AnimInputs) => void;
+  greet: () => void;
+  nod: () => void;
+}
 
 export interface HostSceneOptions {
   canvas: HTMLCanvasElement;
@@ -54,12 +68,18 @@ const CAMERAS: Record<"compact" | HostViewMode, CameraRig> = {
   full: { pos: new THREE.Vector3(0, 1.0, 3.05), look: new THREE.Vector3(0, 0.93, 0), fov: 35 },
 };
 
+const ROBOT_CAMERAS: Record<"compact" | HostViewMode, CameraRig> = {
+  compact: { pos: new THREE.Vector3(0, 1.28, 1.05), look: new THREE.Vector3(0, 1.27, 0), fov: 36 },
+  portrait: { pos: new THREE.Vector3(0, 0.95, 2.95), look: new THREE.Vector3(0, 0.9, 0), fov: 32 },
+  full: { pos: new THREE.Vector3(0, 0.8, 4.0), look: new THREE.Vector3(0, 0.76, 0), fov: 35 },
+};
+
 export class HostScene {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly camera: THREE.PerspectiveCamera;
-  readonly host: HostCharacter;
-  readonly animator: HostAnimator;
+  readonly host: HostRigLike;
+  readonly animator: HostAnimatorLike;
   private stage: StageBuild | null = null;
 
   private container: HTMLElement;
@@ -154,12 +174,19 @@ export class HostScene {
     this.scene.add(green);
 
     /* Character + stage */
-    this.host = createHostCharacter({
-      detail: this.compact ? "head" : "full",
-      quality: this.compact ? "low" : "high",
-    });
+    if (USE_ROBOT_HOST) {
+      const robot = createRobotHost();
+      this.host = robot;
+      this.animator = new RobotAnimator(robot);
+    } else {
+      const human = createHostCharacter({
+        detail: this.compact ? "head" : "full",
+        quality: this.compact ? "low" : "high",
+      });
+      this.host = human;
+      this.animator = new HostAnimator(human);
+    }
     this.scene.add(this.host.root);
-    this.animator = new HostAnimator(this.host);
     if (!this.compact) {
       this.stage = buildStage({ realShadows: shadows });
       this.scene.add(this.stage.group);
@@ -303,6 +330,7 @@ export class HostScene {
   /* ── internals ──────────────────────────────────────────────────── */
 
   private currentCameraRig(): CameraRig {
+    if (USE_ROBOT_HOST) return ROBOT_CAMERAS[this.compact ? "compact" : this.viewMode];
     const base = CAMERAS[this.compact ? "compact" : this.viewMode];
     // On narrow mobile portrait screens (aspect < 0.85), slightly lower the camera look target
     // so the character's face and turban sit cleanly in the upper 55% of the viewport,

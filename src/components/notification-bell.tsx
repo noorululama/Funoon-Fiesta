@@ -10,7 +10,7 @@ import type { Notification } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /** "pill": small round button (default). "badge": the large circular "Hover me get updated" badge on the home hero. */
-export type NotificationBellVariant = "pill" | "badge";
+export type NotificationBellVariant = "pill" | "badge" | "icon";
 
 interface NotificationBellProps {
   initialNotifications?: Notification[];
@@ -132,6 +132,32 @@ export function NotificationBell({
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
                 className="absolute right-[18%] top-[18%] flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-[#DA3E3E] px-1 text-[11px] font-bold text-white shadow"
+              >
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.button>
+      ) : variant === "icon" ? (
+        <motion.button
+          ref={bellRef}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.92 }}
+          onClick={() => setIsOpen(!isOpen)}
+          className="group relative flex h-9 w-9 items-center justify-center text-white transition-colors hover:text-[#FBFF00]"
+          aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+        >
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="origin-[50%_10%] group-hover:animate-[bell-ring_0.9s_ease-in-out]">
+            <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+          </svg>
+          <AnimatePresence>
+            {unreadCount > 0 && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0 }}
+                className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FBFF00] px-1 text-[10px] font-bold leading-none text-[#141414]"
               >
                 {unreadCount > 9 ? "9+" : unreadCount}
               </motion.span>
