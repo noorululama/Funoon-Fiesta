@@ -2,6 +2,49 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getFestDataForAI } from "@/lib/chatbot-service";
 import { NextResponse } from "next/server";
 
+const ALL_MODELS = [
+    "gemini-3.8-flash",
+    "gemini-flash-lite-latest",
+    "gemini-3.5-flash"
+];
+// Remember which model answered last so a broken/slow one is not retried first on every request.
+let preferredModel: string | null = null;
+const FIRST_CHUNK_TIMEOUT_MS = 4500;
+
+class FirstChunkTimeout extends Error {}
+
+type StreamChunk = { text: () => string };
+
+async function openStream(genAI: GoogleGenerativeAI, modelName: string, prompt: string, maxOutputTokens: number) {
+    const attempt = async (noThinking: boolean) => {
+        const model = genAI.getGenerativeModel({
+            model: modelName,
+            generationConfig: {
+                temperature: 0.25,
+                maxOutputTokens,
+                // Spot answers do not need long "thinking": turning it off cuts the wait before the first word.
+                ...(noThinking ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any,
+        });
+        const result = await model.generateContentStream(prompt);
+        const iterator = result.stream[Symbol.asyncIterator]() as AsyncIterator<StreamChunk>;
+        const first = await Promise.race([
+            iterator.next(),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new FirstChunkTimeout("first chunk timeout")), FIRST_CHUNK_TIMEOUT_MS)),
+        ]);
+        if (first.done || !first.value) throw new Error("empty stream");
+        return { iterator, first: first.value as StreamChunk };
+    };
+    try {
+        return await attempt(true);
+    } catch (err) {
+        if (err instanceof FirstChunkTimeout) throw err;
+        // The model may reject the thinking setting: retry once in plain mode.
+        return await attempt(false);
+    }
+}
+
 export async function POST(req: Request) {
     try {
         const apiKey = process.env.GEMINI_API_KEY;
@@ -21,7 +64,7 @@ export async function POST(req: Request) {
         }
 
         // Fetch the latest data from the database
-        const festData = await getFestDataForAI();
+        const festData = await getFestDataForAI(false, String(message));
 
         const isCharacterMode = mode === "character";
 
@@ -65,110 +108,63 @@ User Query: ${message}
 `;
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const candidateModels = [
-            "gemini-3.8-flash",
-            "gemini-flash-lite-latest",
-            "gemini-3.5-flash"
-        ];
+        const candidateModels = preferredModel
+            ? [preferredModel, ...ALL_MODELS.filter((m) => m !== preferredModel)]
+            : ALL_MODELS;
+        const maxOutputTokens = isCharacterMode ? 180 : 650;
 
-        if (isCharacterMode) {
-            let selectedIterator: AsyncIterator<{ text: () => string }> | null = null;
-            let firstChunk: { text: () => string } | null = null;
-            let lastStreamError: unknown = null;
+        let selected: { iterator: AsyncIterator<StreamChunk>; first: StreamChunk } | null = null;
+        let lastStreamError: unknown = null;
 
-            // Start speech output as soon as the first model text is ready.
-            for (const modelName of candidateModels) {
-                try {
-                    const model = genAI.getGenerativeModel({
-                        model: modelName,
-                        generationConfig: {
-                            temperature: 0.25,
-                            maxOutputTokens: 180,
-                        }
-                    });
-                    const result = await model.generateContentStream(systemPrompt);
-                    const iterator = result.stream[Symbol.asyncIterator]();
-                    // A model that does not start streaming within 6s is skipped, so the host never hangs.
-                    const first = await Promise.race([
-                        iterator.next(),
-                        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("first chunk timeout")), 6000)),
-                    ]);
-                    if (first.done || !first.value) continue;
-                    selectedIterator = iterator;
-                    firstChunk = first.value;
-                    break;
-                } catch (err) {
-                    lastStreamError = err;
-                    console.warn(`Streaming model ${modelName} failed, attempting fallback...`);
-                }
-            }
-
-            if (!selectedIterator || !firstChunk) {
-                throw lastStreamError || new Error("No model returned a stream response");
-            }
-
-            const iterator = selectedIterator;
-            const initialChunk = firstChunk;
-            const encoder = new TextEncoder();
-            const body = new ReadableStream<Uint8Array>({
-                async start(controller) {
-                    const enqueueText = (chunk: { text: () => string }) => {
-                        const text = chunk.text();
-                        if (text) controller.enqueue(encoder.encode(text));
-                    };
-
-                    try {
-                        enqueueText(initialChunk);
-                        while (true) {
-                            const next = await iterator.next();
-                            if (next.done) break;
-                            if (next.value) enqueueText(next.value);
-                        }
-                        controller.close();
-                    } catch (err) {
-                        controller.error(err);
-                    }
-                },
-                cancel() {
-                    void iterator.return?.();
-                },
-            });
-
-            return new Response(body, {
-                headers: {
-                    "Content-Type": "text/plain; charset=utf-8",
-                    "Cache-Control": "no-cache, no-transform",
-                    "X-Accel-Buffering": "no",
-                },
-            });
-        }
-
-        let text = "";
-        let lastError: unknown = null;
-
+        // Stream every answer (spoken and written) so the first words show up in about a second.
         for (const modelName of candidateModels) {
             try {
-                const model = genAI.getGenerativeModel({
-                    model: modelName,
-                    generationConfig: {
-                        temperature: 0.25,
-                        maxOutputTokens: isCharacterMode ? 220 : 650,
-                    }
-                });
-                const result = await model.generateContent(systemPrompt);
-                text = result.response.text();
-                if (text) break;
+                selected = await openStream(genAI, modelName, systemPrompt, maxOutputTokens);
+                preferredModel = modelName;
+                break;
             } catch (err) {
-                lastError = err;
-                console.warn(`Model ${modelName} failed, attempting fallback...`);
+                lastStreamError = err;
+                console.warn(`Streaming model ${modelName} failed, attempting fallback...`);
             }
         }
 
-        if (!text) {
-            throw lastError || new Error("All AI models failed to respond");
+        if (!selected) {
+            throw lastStreamError || new Error("No model returned a stream response");
         }
 
-        return NextResponse.json({ response: text });
+        const { iterator, first: initialChunk } = selected;
+        const encoder = new TextEncoder();
+        const body = new ReadableStream<Uint8Array>({
+            async start(controller) {
+                const enqueueText = (chunk: StreamChunk) => {
+                    const text = chunk.text();
+                    if (text) controller.enqueue(encoder.encode(text));
+                };
+
+                try {
+                    enqueueText(initialChunk);
+                    while (true) {
+                        const next = await iterator.next();
+                        if (next.done) break;
+                        if (next.value) enqueueText(next.value);
+                    }
+                    controller.close();
+                } catch (err) {
+                    controller.error(err);
+                }
+            },
+            cancel() {
+                void iterator.return?.();
+            },
+        });
+
+        return new Response(body, {
+            headers: {
+                "Content-Type": "text/plain; charset=utf-8",
+                "Cache-Control": "no-cache, no-transform",
+                "X-Accel-Buffering": "no",
+            },
+        });
     } catch (error) {
         console.error("Chatbot Error:", error);
         return NextResponse.json(

@@ -61,7 +61,7 @@ export function buildStage(opts: { realShadows?: boolean } = {}): StageBuild {
   /* Pedestal */
   const podium = new THREE.Mesh(
     new THREE.CylinderGeometry(0.88, 0.94, 0.04, 72),
-    new THREE.MeshStandardMaterial({ color: 0x1a211b, roughness: 0.3, metalness: 0.8 })
+    new THREE.MeshStandardMaterial({ color: 0x7d1f22, roughness: 0.35, metalness: 0.5 })
   );
   podium.position.y = -0.02;
   podium.receiveShadow = true;
@@ -84,8 +84,8 @@ export function buildStage(opts: { realShadows?: boolean } = {}): StageBuild {
   starGroup.position.y = 0.0035;
   const R = 0.78;
   const inner = (r: number) => r * 0.7654; // concave-vertex radius of two overlapped squares
-  const goldMat = new THREE.MeshBasicMaterial({ color: 0xd6b35a, transparent: true, opacity: 0.85, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
-  const fillMat = new THREE.MeshBasicMaterial({ color: 0x131a14, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const goldMat = new THREE.MeshBasicMaterial({ color: 0xffe36a, transparent: true, opacity: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  const fillMat = new THREE.MeshBasicMaterial({ color: 0x5a1418, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   starGroup.add(new THREE.Mesh(new THREE.ShapeGeometry(starShape(R, inner(R))), goldMat));
   const fill = new THREE.Mesh(new THREE.ShapeGeometry(starShape(R - 0.034, inner(R - 0.034))), fillMat);
   fill.position.z = 0.0004;
@@ -102,15 +102,15 @@ export function buildStage(opts: { realShadows?: boolean } = {}): StageBuild {
     m.position.y = 0.0045;
     return m;
   };
-  const outerRing = ring(0.855, 0.012, 0x70b040, 0.7);
-  const pulseRing = ring(0.62, 0.01, 0x8ccb55, 0.4);
+  const outerRing = ring(0.855, 0.014, 0xfbff00, 0.95);
+  const pulseRing = ring(0.62, 0.012, 0xffffff, 0.5);
   group.add(outerRing, pulseRing);
 
   /* Pattern backdrop (very quiet) */
   const patternTex = makeIslamicPatternTexture();
   const backdrop = new THREE.Mesh(
     new THREE.PlaneGeometry(4.4, 3.4),
-    new THREE.MeshBasicMaterial({ map: patternTex, transparent: true, opacity: 0.24, depthWrite: false })
+    new THREE.MeshBasicMaterial({ map: patternTex, transparent: true, opacity: 0.1, depthWrite: false })
   );
   backdrop.position.set(0, 1.1, -1.25);
   backdrop.renderOrder = -1;
@@ -137,7 +137,7 @@ export function buildStage(opts: { realShadows?: boolean } = {}): StageBuild {
   sparkGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   const sparks = new THREE.Points(
     sparkGeo,
-    new THREE.PointsMaterial({ color: 0xffd97d, size: 0.022, transparent: true, opacity: 0.7, depthWrite: false, sizeAttenuation: true })
+    new THREE.PointsMaterial({ color: 0xfff2a0, size: 0.024, transparent: true, opacity: 0.7, depthWrite: false, sizeAttenuation: true })
   );
   sparks.frustumCulled = false;
   group.add(sparks);

@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
+import { AnimatedHourglass } from "./animated-hourglass";
 import { NotificationProvider } from "@/components/notification-provider";
 import { CountUp, type FestStat } from "@/components/StatsTapeSection";
 import { cn } from "@/lib/utils";
@@ -114,29 +115,13 @@ export function FestieHeroSection({ stats = [] }: { stats?: FestStat[] }) {
                 <HeroCta href="/festory" label="Festory" />
               </div>
               {/* Small screens: hourglass sits to the right of the buttons so the hero fits one screen */}
-              <Image
-                src="/img/hero/hourglass.png"
-                alt=""
-                aria-hidden
-                width={414}
-                height={559}
-                sizes="40vw"
-                className="pointer-events-none h-auto w-[40%] max-w-[165px] shrink-0 animate-[hero-float_6s_ease-in-out_infinite] drop-shadow-[0_14px_18px_rgba(90,30,10,0.25)] md:hidden"
-              />
+              <AnimatedHourglass className="pointer-events-none h-auto w-[34%] max-w-[150px] shrink-0 animate-[hero-float_6s_ease-in-out_infinite] drop-shadow-[0_14px_18px_rgba(90,30,10,0.25)] md:hidden" />
             </div>
           </div>
 
           {/* ══════════ Hourglass illustration ══════════ */}
           <div className="pointer-events-none absolute -bottom-6 left-1/2 z-10 hidden w-[min(58vw,250px)] -translate-x-1/2 md:block md:left-auto md:right-6 md:w-[300px] md:translate-x-0 lg:bottom-[clamp(5rem,9vw,7.5rem)] lg:right-[clamp(1rem,4.5vw,4rem)] lg:left-auto lg:w-[32%] lg:max-w-[430px] lg:translate-x-0">
-            <Image
-              src="/img/hero/hourglass.png"
-              alt="Hourglass with waves and hands reaching out"
-              width={414}
-              height={559}
-              priority
-              sizes="(min-width: 1024px) 430px, 300px"
-              className="h-auto w-full animate-[hero-float_6s_ease-in-out_infinite] drop-shadow-[0_18px_24px_rgba(90,30,10,0.25)]"
-            />
+            <AnimatedHourglass className="h-auto w-full animate-[hero-float_6s_ease-in-out_infinite] drop-shadow-[0_18px_24px_rgba(90,30,10,0.25)]" />
           </div>
 
           {/* ══════════ Desktop: white notch carrying the festival numbers ══════════ */}
@@ -178,7 +163,7 @@ export function FestieHeroSection({ stats = [] }: { stats?: FestStat[] }) {
 
 function HeroCta({ href, label }: { href: string; label: string }) {
   return (
-    <Link href={href} className="group inline-flex items-center gap-3 font-hero-sans text-[22px] font-medium text-white sm:gap-4 sm:text-[28px]">
+    <Link href={href} className="group inline-flex items-center gap-3 whitespace-nowrap font-hero-sans text-[20px] font-medium text-white sm:gap-4 sm:text-[28px]">
       {label}
       <span className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#FBFF00] text-[#141414] shadow-[0_4px_0_#A9462A] transition group-hover:-translate-y-0.5 group-hover:shadow-[0_6px_0_#A9462A] group-active:translate-y-0.5 group-active:shadow-[0_1px_0_#A9462A] sm:h-12 sm:w-12">
         <ArrowUpRight size={24} strokeWidth={2.6} />

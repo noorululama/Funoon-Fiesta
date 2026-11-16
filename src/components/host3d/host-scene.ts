@@ -284,7 +284,9 @@ export class HostScene {
     /* Camera easing toward the active framing */
     const rig = this.currentCameraRig();
     const aspect = this.camera.aspect;
-    const comp = aspect < 1 ? Math.min(1.3, 1 / aspect) : 1;
+    // Narrow screens back off; wide stages (desktop split layout) back off a little so the host isn't cropped.
+    const wideBackoff = USE_ROBOT_HOST && this.viewMode === "portrait" && aspect > 1 ? 1.3 : 1;
+    const comp = aspect < 1 ? Math.min(1.3, 1 / aspect) : wideBackoff;
     this.camTargetPos.copy(rig.pos);
     if (!this.compact) this.camTargetPos.z = rig.pos.z * comp;
     this.camTargetLook.copy(rig.look);
