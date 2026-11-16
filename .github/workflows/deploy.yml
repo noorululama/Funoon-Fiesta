@@ -1,0 +1,30 @@
+name: Auto Deploy to PM2 Server
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Trigger Production Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Deploy Webhook
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "https://funoonfiesta.noorululama.org/deploy-webhook" \
+            -H "Content-Type: application/json" \
+            -H "x-deploy-token: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}" \
+            -d '{"ref": "refs/heads/main", "after": "${{ github.sha }}", "head_commit": {"id": "${{ github.sha }}", "message": "${{ github.event.head_commit.message }}", "author": {"name": "${{ github.actor }}"}}}')
+
+          HTTP_BODY=$(echo "$RESPONSE" | sed '$d')
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n 1)
+
+          echo "Response: $HTTP_BODY"
+          echo "Status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "Deployment trigger failed with status $HTTP_STATUS"
+            exit 1
+          fi
+          echo "Deployment successfully triggered on server!"
