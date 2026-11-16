@@ -69,6 +69,11 @@ Follow these steps to set up the project locally.
     ```env
     MONGODB_URI=mongodb://127.0.0.1:27017/fest_app
     NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+    # Supabase Storage for poster-template images (server-only)
+    SUPABASE_URL=https://your-project.supabase.co
+    SUPABASE_SECRET_KEY=sb_secret_your-secret-key
+    SUPABASE_POSTER_BUCKET=poster-templates
     
     # Pusher Credentials (Optional for local dev)
     PUSHER_APP_ID=your_app_id
@@ -76,6 +81,8 @@ Follow these steps to set up the project locally.
     PUSHER_SECRET=your_secret
     PUSHER_CLUSTER=ap2
     ```
+
+    **Poster-template storage:** Create a public Storage bucket named `poster-templates` in Supabase (or use the name set in `SUPABASE_POSTER_BUCKET`). Allow WebP files and set the bucket's file limit to 8 MB. Add `SUPABASE_URL` and `SUPABASE_SECRET_KEY` to `.env.local` and your hosting environment. Keep the secret key server-side; never use a `NEXT_PUBLIC_` prefix for it. New uploads are optimized to WebP, stored in Supabase, and their public URLs remain in MongoDB. Restart the development server after adding the environment values. Existing local uploads are not migrated automatically; upload those backgrounds again from `/admin/poster-templates`.
 
 4.  **Run the development server**
     ```bash

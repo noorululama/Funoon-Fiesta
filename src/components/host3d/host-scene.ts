@@ -118,7 +118,7 @@ export class HostScene {
     this.renderer.setPixelRatio(Math.min(dpr, this.compact ? 2 : this.lowPower ? 1.25 : 1.75));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
+    this.renderer.toneMappingExposure = 1.05;
     this.renderer.shadowMap.enabled = shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
@@ -126,11 +126,11 @@ export class HostScene {
     this.pmrem = new THREE.PMREMGenerator(this.renderer);
     this.envTarget = this.pmrem.fromScene(new RoomEnvironment(), 0.04);
     this.scene.environment = this.envTarget.texture;
-    this.scene.environmentIntensity = 0.68;
+    this.scene.environmentIntensity = 0.85;
 
     /* Lights: warm key, cool fill, gold rim, green fest accent */
     this.scene.add(new THREE.AmbientLight(0xfff8f0, 0.42));
-    this.keyLight = new THREE.DirectionalLight(0xfff5e8, 2.5);
+    this.keyLight = new THREE.DirectionalLight(0xfff5e8, 2.1);
     this.keyLight.position.set(1.2, 3.1, 2.6);
     this.keyLight.castShadow = shadows;
     this.keyLight.shadow.mapSize.set(this.lowPower ? 1024 : 1536, this.lowPower ? 1024 : 1536);
@@ -143,7 +143,7 @@ export class HostScene {
     this.keyLight.shadow.bias = -0.0004;
     this.keyLight.shadow.normalBias = 0.01;
     this.scene.add(this.keyLight);
-    const fill = new THREE.DirectionalLight(0xdce7fa, 0.85);
+    const fill = new THREE.DirectionalLight(0xdce7fa, 1.05);
     fill.position.set(-2.1, 1.9, 2.0);
     this.scene.add(fill);
     const rim = new THREE.DirectionalLight(0xffd58c, 2.4);

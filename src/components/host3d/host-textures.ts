@@ -75,7 +75,7 @@ export function makeSkinDetailMaps(repeat: [number, number] = [2.5, 2.5]) {
   roughnessCtx.fillRect(0, 0, size, size);
 
   // Tiny, soft pore marks stay below the silhouette and do not create a speckled look.
-  const pores = 11_000;
+  const pores = 18_000;
   for (let i = 0; i < pores; i++) {
     const x = rng() * size;
     const y = rng() * size;

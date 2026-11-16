@@ -503,7 +503,7 @@ export function PosterTemplateEditor({
                       <Input
                         value={template.backgroundImageUrl}
                         onChange={(e) => setTemplate({ ...template, backgroundImageUrl: e.target.value })}
-                        placeholder="/poster-template-1.webp or /uploads/..."
+                        placeholder="Public image URL or /poster-template-1.webp"
                         className="bg-white/5 border-white/10 text-white text-xs font-mono"
                       />
                       <label className="cursor-pointer shrink-0">
@@ -521,7 +521,7 @@ export function PosterTemplateEditor({
                       </label>
                     </div>
                     <p className="text-[11px] text-white/40">
-                      Recommended: High-resolution WebP or PNG format (e.g. 1080x1350 vertical aspect ratio).
+                      PNG, JPEG, or WebP up to 8 MB. Uploaded images are optimized and stored in Supabase. Recommended: 1080x1350 vertical format.
                     </p>
                   </div>
 

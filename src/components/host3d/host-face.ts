@@ -74,7 +74,7 @@ function buildEye(side: 1 | -1, surfaceZ: (x: number, y: number) => number, hi: 
   const ball = new THREE.Group();
   root.add(ball);
 
-  const scleraMat = new THREE.MeshStandardMaterial({ color: 0xf4efe8, roughness: 0.28 });
+  const scleraMat = new THREE.MeshPhysicalMaterial({ color: 0xeee4dc, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.04 });
   ball.add(new THREE.Mesh(new THREE.SphereGeometry(EYE_R, hi ? 32 : 20, hi ? 22 : 14), scleraMat));
 
   const layers: [number, number, number, number][] = [
@@ -84,7 +84,7 @@ function buildEye(side: 1 | -1, surfaceZ: (x: number, y: number) => number, hi: 
     [0.17, 0x040302, 0.12, 1.0046],
   ];
   for (const [ang, color, rough, k] of layers) {
-    ball.add(cap(EYE_R * k, ang, new THREE.MeshStandardMaterial({ color, roughness: rough })));
+    ball.add(cap(EYE_R * k, ang, new THREE.MeshPhysicalMaterial({ color, roughness: rough, clearcoat: 1, clearcoatRoughness: 0.03 })));
   }
   // catch-light so the eyes feel alive
   const glint = new THREE.Mesh(
@@ -96,7 +96,7 @@ function buildEye(side: 1 | -1, surfaceZ: (x: number, y: number) => number, hi: 
   ball.add(glint);
 
   // Eyelids – shells slightly larger than the ball, hinged at its centre.
-  const lidMat = new THREE.MeshStandardMaterial({ color: 0xb98059, roughness: 0.6 });
+  const lidMat = new THREE.MeshStandardMaterial({ color: 0xbf8864, roughness: 0.62 });
   const lashMat = new THREE.MeshStandardMaterial({ color: 0x120b07, roughness: 0.6 });
   const tilt = side * 0.1; // outer corner sits a little higher
 

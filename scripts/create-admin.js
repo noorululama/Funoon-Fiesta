@@ -12,6 +12,8 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
 function getMongoUri() {
+  if (process.env.MONGODB_URI) return process.env.MONGODB_URI;
+
   const envPath = path.resolve(__dirname, "../.env");
   if (fs.existsSync(envPath)) {
     const content = fs.readFileSync(envPath, "utf-8");
@@ -22,7 +24,23 @@ function getMongoUri() {
       }
     }
   }
-  return process.env.MONGODB_URI || "mongodb://localhost:27017/festival_ai";
+  return "mongodb://localhost:27017/festival_ai";
+}
+
+function getMongoDbName() {
+  if (process.env.MONGODB_DB) return process.env.MONGODB_DB;
+
+  const envPath = path.resolve(__dirname, "../.env");
+  if (fs.existsSync(envPath)) {
+    const content = fs.readFileSync(envPath, "utf-8");
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("MONGODB_DB=")) {
+        return trimmed.substring("MONGODB_DB=".length).trim();
+      }
+    }
+  }
+  return "fest_app";
 }
 
 async function main() {
@@ -36,10 +54,11 @@ async function main() {
   }
 
   const mongoUri = getMongoUri();
+  const mongoDbName = getMongoDbName();
   console.log(`Connecting to MongoDB at: ${mongoUri.replace(/:([^@]+)@/, ":****@")}`);
 
   try {
-    await mongoose.connect(mongoUri);
+    await mongoose.connect(mongoUri, { dbName: mongoDbName });
     console.log("Connected to MongoDB.");
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -66,7 +85,7 @@ async function main() {
     console.log(" Admin Account Configured Successfully!");
     console.log("==============================================");
     console.log(`Username: ${updated.username}`);
-    console.log(`Password: ${password}`);
+    console.log("Password: updated (value not displayed)");
     console.log("Login URL: http://localhost:3000/admin/login");
     console.log("==============================================\n");
 

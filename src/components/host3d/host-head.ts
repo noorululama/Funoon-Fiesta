@@ -448,7 +448,7 @@ export function buildHead(quality: "high" | "low"): HeadBuild {
     vertexColors: true,
     map: skinMaps.color,
     bumpMap: skinMaps.bump,
-    bumpScale: 0.0022,
+    bumpScale: 0.0028,
     roughnessMap: skinMaps.roughness,
     sheen: 0.28,
     sheenRoughness: 0.62,

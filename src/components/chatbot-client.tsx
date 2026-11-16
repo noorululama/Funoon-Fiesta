@@ -29,8 +29,8 @@ import { Ai3dHuman, type HumanState } from "@/components/ai-3d-human";
 
 type AIMode = "chat" | "character";
 
-// Keep the 3D host available in the code, but hidden from the chatbot UI for now.
-const SHOW_3D_CHATBOT = false;
+// 3D AI host visible on the chatbot page.
+const SHOW_3D_CHATBOT = true;
 
 interface Message {
   role: "user" | "assistant";
@@ -812,7 +812,7 @@ export default function ChatbotClient() {
           )}
 
           {activeTab === "character" && (
-            <div className="absolute inset-x-0 bottom-[calc(1.25rem+env(safe-area-inset-bottom))] z-30 flex justify-center px-4">
+            <div className="absolute inset-x-0 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] z-30 flex justify-center px-4 lg:bottom-[calc(1.25rem+env(safe-area-inset-bottom))]">
               <div className="flex max-w-[min(92vw,34rem)] items-center gap-3 rounded-full border border-white/15 bg-black/40 py-2.5 pl-2.5 pr-5 text-white shadow-xl shadow-black/20 backdrop-blur-xl sm:gap-4 sm:py-3 sm:pl-3 sm:pr-6">
                 <button
                   type="button"

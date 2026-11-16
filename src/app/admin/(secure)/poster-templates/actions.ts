@@ -11,6 +11,7 @@ import {
 } from "@/lib/data";
 import { uploadPosterTemplateImage, deletePosterTemplateFile } from "@/lib/upload";
 import type { PosterTemplate } from "@/lib/types";
+import { isAdminAuthenticated } from "@/lib/auth";
 
 export async function getAllTemplatesAction() {
   try {
@@ -23,6 +24,10 @@ export async function getAllTemplatesAction() {
 
 export async function uploadBackgroundAction(formData: FormData) {
   try {
+    if (!(await isAdminAuthenticated())) {
+      return { error: "You must be signed in as an admin to upload a template image." };
+    }
+
     const file = formData.get("file") as File | null;
     if (!file || !(file instanceof File) || file.size === 0) {
       return { error: "No file selected or invalid file" };
@@ -38,6 +43,10 @@ export async function uploadBackgroundAction(formData: FormData) {
 
 export async function savePosterTemplateAction(template: PosterTemplate) {
   try {
+    if (!(await isAdminAuthenticated())) {
+      return { error: "You must be signed in as an admin to save a template." };
+    }
+
     const existing = await getPosterTemplateById(template.id);
     let result: PosterTemplate | null;
 
@@ -46,6 +55,18 @@ export async function savePosterTemplateAction(template: PosterTemplate) {
     } else {
       const { id, ...dataWithoutId } = template;
       result = await createPosterTemplate(dataWithoutId);
+    }
+
+    if (
+      result &&
+      existing?.backgroundImageUrl &&
+      existing.backgroundImageUrl !== template.backgroundImageUrl
+    ) {
+      try {
+        await deletePosterTemplateFile(existing.backgroundImageUrl);
+      } catch (error) {
+        console.error("Failed to remove replaced poster template image:", error);
+      }
     }
 
     revalidatePath("/admin/poster-templates");
@@ -59,12 +80,16 @@ export async function savePosterTemplateAction(template: PosterTemplate) {
 
 export async function deletePosterTemplateAction(id: string) {
   try {
+    if (!(await isAdminAuthenticated())) {
+      return { error: "You must be signed in as an admin to delete a template." };
+    }
+
     const template = await getPosterTemplateById(id);
     if (!template) {
       return { error: "Template not found" };
     }
 
-    // Clean up uploaded image if it was in the uploads directory
+    // Remove uploaded image from local storage (legacy) or Supabase Storage.
     if (template.backgroundImageUrl) {
       await deletePosterTemplateFile(template.backgroundImageUrl);
     }

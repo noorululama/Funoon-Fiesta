@@ -26,7 +26,7 @@ async function loginAdminAction(
   store.set(ADMIN_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
     maxAge: SESSION_MAX_AGE,
     path: "/",
   });
