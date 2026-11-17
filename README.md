@@ -70,10 +70,17 @@ Follow these steps to set up the project locally.
     MONGODB_URI=mongodb://127.0.0.1:27017/fest_app
     NEXT_PUBLIC_APP_URL=http://localhost:3000
 
+    # Gemini AI assistant fallback key (server-only; can also be configured in Admin > Settings > AI Assistant)
+    GEMINI_API_KEY=your-gemini-api-key
+
     # Supabase Storage for poster-template images (server-only)
     SUPABASE_URL=https://your-project.supabase.co
     SUPABASE_SECRET_KEY=sb_secret_your-secret-key
     SUPABASE_POSTER_BUCKET=poster-templates
+
+    # Optional: consistent male AI voice (Azure AI Speech; server-only)
+    AZURE_SPEECH_KEY=your-speech-resource-key
+    AZURE_SPEECH_REGION=centralindia
     
     # Pusher Credentials (Optional for local dev)
     PUSHER_APP_ID=your_app_id
@@ -83,6 +90,8 @@ Follow these steps to set up the project locally.
     ```
 
     **Poster-template storage:** Create a public Storage bucket named `poster-templates` in Supabase (or use the name set in `SUPABASE_POSTER_BUCKET`). Allow WebP files and set the bucket's file limit to 8 MB. Add `SUPABASE_URL` and `SUPABASE_SECRET_KEY` to `.env.local` and your hosting environment. Keep the secret key server-side; never use a `NEXT_PUBLIC_` prefix for it. New uploads are optimized to WebP, stored in Supabase, and their public URLs remain in MongoDB. Restart the development server after adding the environment values. Existing local uploads are not migrated automatically; upload those backgrounds again from `/admin/poster-templates`.
+
+    **AI voice:** Add an Azure Speech resource key and its matching region to `.env.local` to enable the same neural male voice on every device. The host uses `ml-IN-MidhunNeural` for Malayalam and `en-IN-PrabhatNeural` for English. Keep `AZURE_SPEECH_KEY` server-only. If voice credentials are missing, written answers and captions still work, while spoken playback shows a setup message.
 
 4.  **Run the development server**
     ```bash

@@ -28,6 +28,19 @@ import { cn } from "@/lib/utils";
 import { Ai3dHuman, type HumanState } from "@/components/ai-3d-human";
 
 // 44-byte silent clip used to unlock audio playback on phones after the first tap.
+// Never leave the host "thinking" forever: give up on a request that gets no response in 25s.
+function fetchChat(init: RequestInit, externalSignal?: AbortSignal): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25_000);
+  const abort = () => controller.abort();
+  if (externalSignal?.aborted) abort();
+  else externalSignal?.addEventListener("abort", abort, { once: true });
+  return fetch("/api/chat", { ...init, signal: controller.signal }).finally(() => {
+    clearTimeout(timer);
+    externalSignal?.removeEventListener("abort", abort);
+  });
+}
+
 // ~0.1s of silence. iOS rejects a zero-length clip, so the player never got unlocked.
 const SILENT_WAV = (() => {
   const samples = 800;
@@ -73,6 +86,31 @@ interface Message {
   content: string;
   /** Which mode produced it: spoken host replies are plain text, chat replies are markdown. */
   mode: AIMode;
+  /** Failed turns are excluded from AI context and can be retried from the last user question. */
+  failed?: boolean;
+}
+
+function toRequestHistory(messages: Message[]) {
+  const completedTurns: { role: "user" | "assistant"; content: string }[] = [];
+  let pendingUser: Message | null = null;
+
+  for (const message of messages) {
+    if (message.failed) {
+      pendingUser = null;
+      continue;
+    }
+    if (message.role === "user") {
+      pendingUser = message;
+    } else if (pendingUser) {
+      completedTurns.push(
+        { role: "user", content: pendingUser.content },
+        { role: "assistant", content: message.content },
+      );
+      pendingUser = null;
+    }
+  }
+
+  return completedTurns.slice(-12);
 }
 
 const CHAT_SUGGESTIONS = [
@@ -126,20 +164,23 @@ const INSTANT_INTENTS: { regex: RegExp; reply: string }[] = [
 ];
 
 export default function ChatbotClient() {
-  const [activeTab, setActiveTab] = useState<AIMode>(SHOW_3D_CHATBOT ? "character" : "chat");
+  const [activeTab, setActiveTab] = useState<AIMode>("chat");
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoadingState] = useState(false);
+  const [isAwaitingFirstToken, setIsAwaitingFirstToken] = useState(false);
   const setIsLoading = (value: boolean) => {
     isLoadingRef.current = value;
     setIsLoadingState(value);
   };
   const [humanState, setHumanState] = useState<HumanState>("idle");
   const isLoadingRef = useRef(false);
+  const activeChatRequestRef = useRef<AbortController | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [voiceInputNotice, setVoiceInputNotice] = useState<string | null>(null);
+  const [voicePlaybackNotice, setVoicePlaybackNotice] = useState<string | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   // Character specific response display
@@ -185,9 +226,7 @@ export default function ChatbotClient() {
   useEffect(() => {
     return () => {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      if (typeof window !== "undefined" && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
+      activeChatRequestRef.current?.abort();
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
@@ -196,36 +235,17 @@ export default function ChatbotClient() {
     };
   }, []);
 
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-
-  // Pre-load and monitor available browser speech synthesis voices
-  useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const loadVoices = () => {
-      const v = window.speechSynthesis.getVoices();
-      if (v.length > 0) setAvailableVoices(v);
-    };
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-    return () => {
-      if (typeof window !== "undefined" && window.speechSynthesis) {
-        window.speechSynthesis.onvoiceschanged = null;
-      }
-    };
-  }, []);
-
-  /* ── Male host voice ─────────────────────────────────────────────
-     Primary: a server-side neural MALE voice (/api/tts), so every device
-     (iPhone, Android, Windows, Mac) hears the same host.
-     Fallback: the best male voice the browser itself offers. */
+  /* ── Consistent male host voice ──────────────────────────────────
+     All spoken audio comes from the named male neural voices on the server.
+     Browser voices are deliberately not used because browsers don't expose
+     reliable voice gender metadata. */
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const currentAudioUrlRef = useRef<string | null>(null);
   const audioUnlockedRef = useRef(false);
   const recLangRef = useRef<string | null>(null);
   const speechEpochRef = useRef(0);
-  const ttsQueueRef = useRef<{ text: string; isMl: boolean; epoch: number; promise: Promise<string> }[]>([]);
+  const ttsQueueRef = useRef<{ text: string; epoch: number }[]>([]);
   const ttsPlayingRef = useRef(false);
-  const ttsDownUntilRef = useRef(0);
-  const fallbackSpeakRef = useRef<(text: string, isMl: boolean) => void>(() => {});
 
   const getAudio = useCallback(() => {
     if (typeof Audio === "undefined") return null;
@@ -240,14 +260,6 @@ export default function ChatbotClient() {
   // Phones only allow audio that started from a tap: warm the player up on the first tap.
   const unlockAudio = useCallback(() => {
     if (audioUnlockedRef.current) return;
-    // iOS only lets speechSynthesis speak later if it was started once inside a tap.
-    try {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        const prime = new SpeechSynthesisUtterance(" ");
-        prime.volume = 0;
-        window.speechSynthesis.speak(prime);
-      }
-    } catch {}
     const a = getAudio();
     if (!a) return;
     a.src = SILENT_WAV;
@@ -269,7 +281,21 @@ export default function ChatbotClient() {
       a.onerror = null;
       a.pause();
     }
-    if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
+    if (currentAudioUrlRef.current) URL.revokeObjectURL(currentAudioUrlRef.current);
+    currentAudioUrlRef.current = null;
+  }, []);
+
+  const reportVoiceIssue = useCallback((error?: unknown) => {
+    ttsQueueRef.current = [];
+    ttsPlayingRef.current = false;
+    setIsSpeaking(false);
+    setHumanState(isLoadingRef.current ? "thinking" : "idle");
+    const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+    setVoicePlaybackNotice(
+      code === "voice_not_configured"
+        ? "To hear the consistent male voice, add AZURE_SPEECH_KEY and AZURE_SPEECH_REGION to .env.local. Your text replies and captions remain available."
+        : "The male voice is temporarily unavailable. Your complete reply is still available as text; try Read aloud again in a moment.",
+    );
   }, []);
 
   const playNext = useCallback(
@@ -283,19 +309,20 @@ export default function ChatbotClient() {
       }
       ttsPlayingRef.current = true;
 
-      const useBrowserVoice = () => {
-        // Server voice unavailable: pause it for a minute and let the browser voice finish the queue.
-        ttsDownUntilRef.current = Date.now() + 60_000;
-        const rest = ttsQueueRef.current.splice(0);
-        ttsPlayingRef.current = false;
-        [item, ...rest].forEach((q) => fallbackSpeakRef.current(q.text, q.isMl));
-      };
-
       let url: string;
       try {
-        url = await item.promise;
-      } catch {
-        if (item.epoch === speechEpochRef.current) useBrowserVoice();
+        const response = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: item.text }),
+        });
+        if (!response.ok) {
+          const details = await response.json().catch(() => null);
+          throw Object.assign(new Error(details?.error ?? "Male voice unavailable"), { code: details?.code });
+        }
+        url = URL.createObjectURL(await response.blob());
+      } catch (error) {
+        if (item.epoch === speechEpochRef.current) reportVoiceIssue(error);
         return;
       }
       if (item.epoch !== speechEpochRef.current) {
@@ -306,125 +333,53 @@ export default function ChatbotClient() {
       const audio = getAudio();
       if (!audio) {
         URL.revokeObjectURL(url);
-        useBrowserVoice();
+        reportVoiceIssue();
         return;
       }
+      currentAudioUrlRef.current = url;
       const done = () => {
         audio.onended = null;
         audio.onerror = null;
         URL.revokeObjectURL(url);
+        currentAudioUrlRef.current = null;
         if (item.epoch === speechEpochRef.current) void run();
       };
       audio.onended = done;
-      audio.onerror = done;
+      audio.onerror = () => {
+        audio.onended = null;
+        audio.onerror = null;
+        URL.revokeObjectURL(url);
+        currentAudioUrlRef.current = null;
+        if (item.epoch === speechEpochRef.current) reportVoiceIssue();
+      };
       audio.src = url;
       try {
         await audio.play();
+        setVoicePlaybackNotice(null);
         setIsSpeaking(true);
         setHumanState("speaking");
       } catch {
         audio.onended = null;
         audio.onerror = null;
         URL.revokeObjectURL(url);
-        if (item.epoch === speechEpochRef.current) useBrowserVoice();
+        currentAudioUrlRef.current = null;
+        if (item.epoch === speechEpochRef.current) reportVoiceIssue();
       }
     },
-    [getAudio],
+    [getAudio, reportVoiceIssue],
   );
 
   const enqueueServerSpeech = useCallback(
-    (text: string, isMl: boolean) => {
-      // Requests start immediately, so the next sentence is already downloaded when the current one ends.
-      const promise = fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      })
-        .then((r) => {
-          if (!r.ok) throw new Error("tts failed");
-          return r.blob();
-        })
-        .then((b) => URL.createObjectURL(b));
-      promise.catch(() => {});
-      ttsQueueRef.current.push({ text, isMl, epoch: speechEpochRef.current, promise });
+    (text: string) => {
+      ttsQueueRef.current.push({ text, epoch: speechEpochRef.current });
       if (!ttsPlayingRef.current) void playNext();
     },
     [playNext],
   );
 
-  // Browser voice (fallback), always preferring a male voice.
-  const speakWithBrowserVoice = useCallback(
-    (cleanText: string, isMalayalamSpeech: boolean) => {
-      if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      const currentVoices =
-        window.speechSynthesis.getVoices().length > 0 ? window.speechSynthesis.getVoices() : availableVoices;
-      const MALE = ["midhun", "prabhat", "rishi", "ravi", "hemant", "rahul", "madhur", "david", "mark", "james", "guy", "alex", "daniel", "male", " man"];
-      const isMale = (v: SpeechSynthesisVoice) => {
-        const n = v.name.toLowerCase();
-        return MALE.some((m) => n.includes(m));
-      };
-
-      if (isMalayalamSpeech) {
-        const ml = currentVoices.filter((v) => v.lang.toLowerCase().startsWith("ml") || v.name.toLowerCase().includes("malayalam"));
-        const selectedVoice = ml.find(isMale) ?? ml[0];
-        if (selectedVoice) {
-          utterance.voice = selectedVoice;
-          utterance.lang = selectedVoice.lang || "ml-IN";
-          utterance.rate = 1.0;
-          utterance.pitch = 0.8;
-        } else {
-          // No Malayalam voice on this device: use a male Indian voice (never force ml-IN, Chromium would abort).
-          const indian = currentVoices.filter((v) => v.lang.includes("IN") || v.name.includes("India"));
-          const voice = indian.find(isMale) ?? currentVoices.find(isMale) ?? indian[0] ?? currentVoices[0];
-          if (voice) {
-            utterance.voice = voice;
-            utterance.lang = voice.lang;
-          }
-          utterance.rate = 1.02;
-          utterance.pitch = 0.75;
-        }
-      } else {
-        utterance.rate = 1.05;
-        utterance.pitch = 0.8;
-        const en = currentVoices.filter((v) => v.lang.includes("en-IN") || v.name.includes("India") || v.lang.includes("en-US") || v.lang.includes("en-GB"));
-        const voice = en.find(isMale) ?? currentVoices.find(isMale) ?? en[0] ?? currentVoices[0];
-        if (voice) {
-          utterance.voice = voice;
-          utterance.lang = voice.lang;
-        } else {
-          utterance.lang = "en-IN";
-        }
-      }
-
-      utterance.onstart = () => {
-        setIsSpeaking(true);
-        setHumanState("speaking");
-      };
-      utterance.onend = () => {
-        if (typeof window !== "undefined" && !window.speechSynthesis.speaking) {
-          setIsSpeaking(false);
-          setHumanState(isLoadingRef.current ? "thinking" : "idle");
-        }
-      };
-      utterance.onerror = (e) => {
-        console.warn("SpeechSynthesis utterance error:", e);
-        if (typeof window !== "undefined" && !window.speechSynthesis.speaking) {
-          setIsSpeaking(false);
-          setHumanState("idle");
-        }
-      };
-      window.speechSynthesis.speak(utterance);
-    },
-    [availableVoices],
-  );
-  fallbackSpeakRef.current = speakWithBrowserVoice;
-
   // Text-to-speech: male voice, sentence by sentence
   const speakText = useCallback(
-    (text: string, forceMalayalam = false, shouldCancel = true): boolean => {
+    (text: string, shouldCancel = true): boolean => {
       if (!voiceEnabled || typeof window === "undefined") return false;
 
       // Clean formatting, symbols, and punctuation for natural, clear spoken Malayalam
@@ -441,19 +396,18 @@ export default function ChatbotClient() {
         .trim();
       if (!cleanText) return false;
 
-      const isMl = forceMalayalam || activeTab === "character" || /[ഀ-ൿ]/.test(cleanText);
       if (shouldCancel) cancelAllSpeech();
 
       const chunks = splitForSpeech(cleanText);
-      if (typeof Audio !== "undefined" && Date.now() > ttsDownUntilRef.current) {
-        chunks.forEach((c) => enqueueServerSpeech(c, isMl));
-        return true;
+      if (typeof Audio === "undefined") {
+        setVoicePlaybackNotice("Audio playback is unavailable in this browser. The reply is still shown as text.");
+        return false;
       }
-      if (!("speechSynthesis" in window)) return false;
-      chunks.forEach((c) => speakWithBrowserVoice(c, isMl));
+      setVoicePlaybackNotice(null);
+      chunks.forEach((chunk) => enqueueServerSpeech(chunk));
       return true;
     },
-    [voiceEnabled, activeTab, cancelAllSpeech, enqueueServerSpeech, speakWithBrowserVoice],
+    [voiceEnabled, activeTab, cancelAllSpeech, enqueueServerSpeech],
   );
 
   const stopSpeaking = () => {
@@ -462,160 +416,228 @@ export default function ChatbotClient() {
     setHumanState("idle");
   };
 
-  // Web Speech API: Listening to User
-  // In Character mode: Listens strictly in Malayalam (ml-IN)
-  // In Chat mode: Listens in English/multilingual (en-US)
-  const toggleListening = () => {
-    unlockAudio();
-    if (isLoading) return;
+  // ───────── Live voice (hands-free) ─────────
+  // One tap = one question: the mic listens until you pause, sends it, then closes.
+  // Tap again to send right away, or to interrupt the host.
+  const [liveMode, setLiveMode] = useState(false);
+  const liveModeRef = useRef(false);
+  const isListeningRef = useRef(false);
+  const isSpeakingRef = useRef(false);
+  const startingRef = useRef(false);
+  const failCountRef = useRef(0);
+  const activeTabRef = useRef(activeTab);
+  isListeningRef.current = isListening;
+  isSpeakingRef.current = isSpeaking;
+  activeTabRef.current = activeTab;
+  const LIVE_SILENCE_MS = 1500;
 
-    if (isListening) {
-      // User tapped "Tap to Send" early: send immediately without waiting for browser silence!
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {}
-      }
-      setIsListening(false);
-      const textToSend = currentTranscriptRef.current.trim();
-      currentTranscriptRef.current = "";
-      if (textToSend) {
-        if (activeTab === "character") {
-          handleSendCharacterQuery(textToSend);
-        } else {
-          handleSendMessage(textToSend);
-        }
-      } else {
-        setHumanState("idle");
-      }
-      return;
+  const detachRecognition = () => {
+    const rec = recognitionRef.current;
+    recognitionRef.current = null;
+    if (rec) {
+      rec.onresult = null;
+      rec.onerror = null;
+      rec.onend = null;
+      try {
+        rec.abort();
+      } catch {}
     }
+  };
 
-    if (typeof window === "undefined") return;
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setVoiceInputNotice("Voice input isn't available here. On iPhone, open this page in Safari (not Chrome or an in-app browser), or use Text chat.");
-      return;
-    }
-
-    setVoiceInputNotice(null);
-
-    // Stop active speech before listening
-    stopSpeaking();
+  const endLive = (notice?: string | null) => {
+    liveModeRef.current = false;
+    setLiveMode(false);
+    startingRef.current = false;
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    detachRecognition();
     currentTranscriptRef.current = "";
-    if (activeTab === "character") setInput("");
+    setIsListening(false);
+    setHumanState((current) => (current === "listening" ? "idle" : current));
+    if (activeTabRef.current === "character") setInput("");
+    if (notice !== undefined) setVoiceInputNotice(notice);
+  };
+
+  const sendSpoken = () => {
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    const text = currentTranscriptRef.current.trim();
+    currentTranscriptRef.current = "";
+    // One question per tap: close the mic now and do not reopen it after the answer.
+    liveModeRef.current = false;
+    setLiveMode(false);
+    detachRecognition();
+    setIsListening(false);
+    if (!text) {
+      setHumanState("idle");
+      return;
+    }
+    if (activeTabRef.current === "character") {
+      handleSendCharacterQuery(text);
+    } else {
+      handleSendMessage(text);
+    }
+  };
+
+  const startRecognition = () => {
+    if (typeof window === "undefined" || startingRef.current || recognitionRef.current) return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      endLive("Voice input isn't available here. On iPhone, open this page in Safari (not Chrome or an in-app browser), or use Text chat.");
+      return;
+    }
 
     try {
+      startingRef.current = true;
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
-
-      // Character mode listens in Malayalam; Chat mode listens in en-US
-      recognition.lang = recLangRef.current ?? (activeTab === "character" ? "ml-IN" : "en-US");
+      // Character mode listens in Malayalam; Chat mode in English
+      recognition.lang = recLangRef.current ?? (activeTabRef.current === "character" ? "ml-IN" : "en-US");
+      recognition.continuous = true;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
 
       recognition.onstart = () => {
+        startingRef.current = false;
+        failCountRef.current = 0;
         setIsListening(true);
         setHumanState("listening");
       };
 
       recognition.onresult = (event: any) => {
-        const current = event.resultIndex;
-        const transcript = event.results[current][0].transcript;
-        currentTranscriptRef.current = transcript;
-
-        setInput(transcript);
-
-        // If browser marks as isFinal, send immediately
-        if (event.results[current].isFinal) {
-          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-          setIsListening(false);
-          const textToSend = transcript.trim();
-          currentTranscriptRef.current = "";
-          if (textToSend) {
-            if (activeTab === "character") {
-              handleSendCharacterQuery(textToSend);
-            } else {
-              handleSendMessage(textToSend);
-            }
-          } else {
-            setHumanState("idle");
-          }
-          return;
-        }
-
-        // Fast silence detection: If user pauses for 0.8s after speaking, auto-send without waiting 3-4s!
+        // Everything heard in this session, so a pause inside a long question never loses words.
+        let text = "";
+        for (let i = 0; i < event.results.length; i++) text += `${event.results[i][0].transcript} `;
+        text = text.trim();
+        if (!text) return;
+        currentTranscriptRef.current = text;
+        setInput(text);
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = setTimeout(() => {
-          const textToSend = currentTranscriptRef.current.trim();
-          if (textToSend) {
-            if (recognitionRef.current) {
-              try {
-                recognitionRef.current.stop();
-              } catch {}
-            }
-            setIsListening(false);
-            currentTranscriptRef.current = "";
-            if (activeTab === "character") {
-              handleSendCharacterQuery(textToSend);
-            } else {
-              handleSendMessage(textToSend);
-            }
-          }
-        }, 800);
+        silenceTimerRef.current = setTimeout(sendSpoken, LIVE_SILENCE_MS);
       };
 
       recognition.onerror = (event: any) => {
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        setIsListening(false);
-        setHumanState("idle");
-        // iPhones often cannot recognise Malayalam: retry once with Indian English.
-        if (event.error === "language-not-supported" && recognition.lang !== "en-IN") {
+        startingRef.current = false;
+        const err = event.error;
+        if (err === "language-not-supported" && recognition.lang !== "en-IN") {
+          // iPhones often cannot recognise Malayalam: carry on in Indian English.
           recLangRef.current = "en-IN";
           setVoiceInputNotice("Malayalam voice input isn't available on this phone, so I'm listening in English instead.");
-          setTimeout(() => toggleListening(), 250);
           return;
         }
-        setVoiceInputNotice(
-          event.error === "not-allowed" || event.error === "service-not-allowed"
-            ? "Allow microphone access, then tap the microphone again. On iPhone also turn on Siri & Dictation in Settings."
-            : event.error === "no-speech"
-            ? "I didn't hear speech. Tap the microphone and try again."
-            : "Voice input isn't available right now. Try again."
-        );
+        if (err === "not-allowed" || err === "service-not-allowed") {
+          endLive("Allow microphone access, then tap the microphone again. On iPhone also turn on Siri & Dictation in Settings.");
+          return;
+        }
+        if (err === "no-speech" || err === "aborted") return; // onend closes the session
+        failCountRef.current += 1;
+        if (failCountRef.current >= 4) endLive("Voice input isn't available right now. Try again.");
       };
 
       recognition.onend = () => {
+        // Browsers close the mic after a while or a long silence: send what we have, or just reopen it.
+        startingRef.current = false;
+        if (recognitionRef.current === recognition) recognitionRef.current = null;
         setIsListening(false);
-        setHumanState((current) => current === "listening" ? "idle" : current);
+        if (!liveModeRef.current) {
+          setHumanState((current) => (current === "listening" ? "idle" : current));
+          return;
+        }
+        if (currentTranscriptRef.current.trim()) sendSpoken();
+        else endLive("I didn't hear anything. Tap the microphone and ask again, a little closer to the phone.");
       };
 
       recognition.start();
     } catch (e) {
       console.error("Speech recognition error:", e);
-      setIsListening(false);
-      setHumanState("idle");
-      setVoiceInputNotice("Couldn't start the microphone. Check its permission and try again.");
+      startingRef.current = false;
+      recognitionRef.current = null;
+      failCountRef.current += 1;
+      if (failCountRef.current >= 4) endLive("Couldn't start the microphone. Check its permission and try again.");
     }
   };
 
+  // Keep-alive: while live voice is on and nobody is talking or thinking, make sure the mic is open.
+  useEffect(() => {
+    if (!liveMode) return;
+    const id = setInterval(() => {
+      if (!liveModeRef.current) return;
+      const hostBusy =
+        isLoadingRef.current ||
+        isSpeakingRef.current ||
+        ttsPlayingRef.current ||
+        ttsQueueRef.current.length > 0;
+      if (!hostBusy && !isListeningRef.current && !startingRef.current && !recognitionRef.current) {
+        startRecognition();
+      }
+    }, 600);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveMode]);
+
+  // Changing between Talk-to-host and Text chat ends the live session.
+  useEffect(() => {
+    if (liveModeRef.current) endLive(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  useEffect(
+    () => () => {
+      liveModeRef.current = false;
+    },
+    [],
+  );
+
+  const toggleListening = () => {
+    unlockAudio();
+
+    if (liveModeRef.current) {
+      if (isListeningRef.current) {
+        // Tapped while listening: send what was said, or end the session if nothing was said.
+        if (currentTranscriptRef.current.trim()) sendSpoken();
+        else endLive(null);
+        return;
+      }
+      // Tapped while the host is thinking or talking: interrupt and listen again.
+      if (isSpeakingRef.current || ttsPlayingRef.current) stopSpeaking();
+      else if (isLoadingRef.current) endLive(null);
+      return;
+    }
+
+    if (isLoading) return;
+    if (typeof window === "undefined") return;
+    if (!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) {
+      setVoiceInputNotice("Voice input isn't available here. On iPhone, open this page in Safari (not Chrome or an in-app browser), or use Text chat.");
+      return;
+    }
+
+    setVoiceInputNotice(null);
+    stopSpeaking();
+    currentTranscriptRef.current = "";
+    failCountRef.current = 0;
+    if (activeTab === "character") setInput("");
+    liveModeRef.current = true;
+    setLiveMode(true);
+    startRecognition();
+  };
+
   // Character query handler (pure voice/spoken dialogue mode with SPOT REPLY)
-  const handleSendCharacterQuery = async (queryText: string) => {
+  const handleSendCharacterQuery = async (queryText: string, historyOverride?: Message[]) => {
     const trimmed = queryText.trim();
-    if (!trimmed || isLoading) return;
+    if (!trimmed || isLoadingRef.current) return;
+    if (trimmed.length > 1200) {
+      setVoiceInputNotice("Please keep your question under 1,200 characters.");
+      return;
+    }
+    const previousMessages = historyOverride ?? chatMessages;
 
     setInput("");
     setVoiceInputNotice(null);
     stopSpeaking();
     setCharacterUserQuery(trimmed);
-    setChatMessages((prev) => [...prev, { role: "user", content: trimmed, mode: "character" }]);
-    const reply = (content: string) =>
-      setChatMessages((prev) => [...prev, { role: "assistant", content, mode: "character" }]);
+    const currentUserMessage: Message = { role: "user", content: trimmed, mode: "character" };
+    if (historyOverride) setChatMessages([...previousMessages, currentUserMessage]);
+    else setChatMessages((prev) => [...prev, currentUserMessage]);
+    const reply = (content: string, failed = false) =>
+      setChatMessages((prev) => [...prev, { role: "assistant", content, mode: "character", failed }]);
 
     // 1. Instant Intent Check: 0ms Spot Reply for greetings and common queries
     for (const item of INSTANT_INTENTS) {
@@ -623,13 +645,14 @@ export default function ChatbotClient() {
         setCharacterResponse(item.reply);
         reply(item.reply);
         setShowSubtitle(true);
-        if (!speakText(item.reply, true, true)) setHumanState("idle");
-        setIsLoading(false);
+        if (!speakText(item.reply)) setHumanState("idle");
         return;
       }
     }
 
     setIsLoading(true);
+    const requestController = new AbortController();
+    activeChatRequestRef.current = requestController;
     setHumanState("thinking");
     setCharacterResponse(null);
     setShowSubtitle(true);
@@ -638,15 +661,15 @@ export default function ChatbotClient() {
     let gotAnswer = false;
     // If the answer is not here after ~0.9s, say a short acknowledgement so the host never feels frozen.
     const fillerTimer = setTimeout(() => {
-      if (!gotAnswer) speakText(SPOT_REFLEXES[Math.floor(Math.random() * SPOT_REFLEXES.length)], true, false);
+      if (!gotAnswer) speakText(SPOT_REFLEXES[Math.floor(Math.random() * SPOT_REFLEXES.length)], false);
     }, 1100);
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetchChat({
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed, mode: "character" }),
-      });
+        body: JSON.stringify({ message: trimmed, mode: "character", history: toRequestHistory(previousMessages) }),
+      }, requestController.signal);
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -671,16 +694,16 @@ export default function ChatbotClient() {
             const early = speechBuffer.match(/^([\s\S]{18,}?[,،])\s+/);
             if (early && !/[.!?।]\s/.test(early[1])) {
               speechBuffer = speechBuffer.slice(early[0].length);
-              if (speakText(early[1].trim(), true, false)) queuedSpeech = true;
+              if (speakText(early[1].trim(), false)) queuedSpeech = true;
             }
           }
           while ((match = speechBuffer.match(/^([\s\S]*?[.!?।])\s+/))) {
             const sentence = match[1].trim();
             speechBuffer = speechBuffer.slice(match[0].length);
-            if (sentence && speakText(sentence, true, false)) queuedSpeech = true;
+            if (sentence && speakText(sentence, false)) queuedSpeech = true;
           }
           if (flush && speechBuffer.trim()) {
-            if (speakText(speechBuffer.trim(), true, false)) queuedSpeech = true;
+            if (speakText(speechBuffer.trim(), false)) queuedSpeech = true;
             speechBuffer = "";
           }
         };
@@ -708,34 +731,48 @@ export default function ChatbotClient() {
       if (!streamedText.trim()) throw new Error("The host returned an empty answer.");
       setCharacterResponse(streamedText);
       reply(streamedText);
-      if (!queuedSpeech && !speakText(streamedText, true, false)) setHumanState("idle");
+      if (!queuedSpeech && !speakText(streamedText, false)) setHumanState("idle");
     } catch (err) {
+      if (requestController.signal.aborted) return;
       console.error("Error in handleSendCharacterQuery:", err);
       const errMsg = streamedText.trim()
         ? "ക്ഷമിക്കണം, മറുപടി പൂർത്തിയാകുന്നതിന് മുമ്പ് ബന്ധം നഷ്ടപ്പെട്ടു. വീണ്ടും ചോദിക്കൂ."
         : "ക്ഷമിക്കണം, താൽക്കാലികമായി കണക്ട് ചെയ്യാൻ സാധിച്ചില്ല. ദയവായി വീണ്ടും ശ്രമിക്കുക.";
       const finalText = streamedText.trim() ? `${streamedText.trim()} ${errMsg}` : errMsg;
       setCharacterResponse(finalText);
-      reply(finalText);
+      reply(finalText, true);
       setShowSubtitle(true);
-      if (!speakText(errMsg, true, false)) setHumanState("idle");
+      if (!speakText(errMsg, false)) setHumanState("idle");
     } finally {
       clearTimeout(fillerTimer);
-      setIsLoading(false);
+      if (activeChatRequestRef.current === requestController) {
+        activeChatRequestRef.current = null;
+        setIsLoading(false);
+      }
     }
   };
 
   // Chat section query handler (streams the answer, speaks sentence by sentence)
-  const handleSendMessage = async (text: string) => {
-    if (!text.trim() || isLoading) return;
+  const handleSendMessage = async (text: string, historyOverride?: Message[]) => {
+    if (!text.trim() || isLoadingRef.current) return;
+    if (text.trim().length > 1200) {
+      setVoiceInputNotice("Please keep your question under 1,200 characters.");
+      return;
+    }
+    const previousMessages = historyOverride ?? chatMessages;
 
     setVoiceInputNotice(null);
     stopSpeaking();
     const userMessage = text.trim();
     setInput("");
 
-    setChatMessages((prev) => [...prev, { role: "user", content: userMessage, mode: "chat" }]);
+    const currentUserMessage: Message = { role: "user", content: userMessage, mode: "chat" };
+    if (historyOverride) setChatMessages([...previousMessages, currentUserMessage]);
+    else setChatMessages((prev) => [...prev, currentUserMessage]);
     setIsLoading(true);
+    setIsAwaitingFirstToken(true);
+    const requestController = new AbortController();
+    activeChatRequestRef.current = requestController;
     setHumanState("thinking");
 
     let answer = "";
@@ -747,29 +784,33 @@ export default function ChatbotClient() {
       while ((match = speechBuffer.match(/^([\s\S]*?(?:[.!?।]\s|\n))/))) {
         const sentence = match[1].trim();
         speechBuffer = speechBuffer.slice(match[0].length);
-        if (sentence && speakText(sentence, false, false)) queuedSpeech = true;
+        if (sentence && speakText(sentence, false)) queuedSpeech = true;
       }
       if (flush && speechBuffer.trim()) {
-        if (speakText(speechBuffer.trim(), false, false)) queuedSpeech = true;
+        if (speakText(speechBuffer.trim(), false)) queuedSpeech = true;
         speechBuffer = "";
       }
     };
     const showAnswer = () => {
+      // React runs state updaters later, so read `shown`/`answer` now. Otherwise the first update
+      // overwrote the user's own message with the answer.
+      const content = answer;
+      const first = !shown;
+      shown = true;
       setChatMessages((prev) => {
-        if (!shown) return [...prev, { role: "assistant", content: answer, mode: "chat" }];
+        if (first) return [...prev, { role: "assistant", content, mode: "chat" }];
         const copy = [...prev];
-        copy[copy.length - 1] = { ...copy[copy.length - 1], content: answer };
+        copy[copy.length - 1] = { ...copy[copy.length - 1], content };
         return copy;
       });
-      shown = true;
     };
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetchChat({
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage, mode: "chat" }),
-      });
+        body: JSON.stringify({ message: userMessage, mode: "chat", history: toRequestHistory(previousMessages) }),
+      }, requestController.signal);
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -779,6 +820,7 @@ export default function ChatbotClient() {
       if ((response.headers.get("content-type") ?? "").includes("application/json")) {
         const data = await response.json();
         if (data.error) throw new Error(data.error);
+        setIsAwaitingFirstToken(false);
         answer = String(data.response ?? "");
         showAnswer();
         speechBuffer = answer;
@@ -791,10 +833,10 @@ export default function ChatbotClient() {
           if (done) break;
           const part = decoder.decode(value, { stream: true });
           if (!part) continue;
+          setIsAwaitingFirstToken(false);
           answer += part;
           speechBuffer += part;
           showAnswer();
-          setIsLoading(false); // first words are on screen: hide the typing dots
           speakReady();
         }
         const tail = decoder.decode();
@@ -808,17 +850,28 @@ export default function ChatbotClient() {
       if (!answer.trim()) throw new Error("Empty answer");
       speakReady(true);
       if (!queuedSpeech) setHumanState("idle");
-    } catch {
-      const failure = "Sorry, I encountered a temporary connection issue. Please try again.";
+    } catch (err) {
+      if (requestController.signal.aborted) return;
+      setIsAwaitingFirstToken(false);
+      const failure = err instanceof Error && err.message && err.message !== "Failed to fetch"
+        ? `I couldn't complete that reply. ${err.message}`
+        : "I couldn't complete that reply because of a connection issue. Please try again.";
       if (shown) {
-        answer = `${answer.trim()}\n\n${failure}`;
-        showAnswer();
+        setChatMessages((prev) => prev.map((message, index) =>
+          index === prev.length - 1
+            ? { ...message, content: answer.trim() ? message.content : failure, failed: true }
+            : message,
+        ));
       } else {
-        setChatMessages((prev) => [...prev, { role: "assistant", content: failure, mode: "chat" }]);
+        setChatMessages((prev) => [...prev, { role: "assistant", content: failure, mode: "chat", failed: true }]);
       }
       setHumanState("idle");
     } finally {
-      setIsLoading(false);
+      if (activeChatRequestRef.current === requestController) {
+        activeChatRequestRef.current = null;
+        setIsAwaitingFirstToken(false);
+        setIsLoading(false);
+      }
     }
   };
 
@@ -835,7 +888,22 @@ export default function ChatbotClient() {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  const handleRetryMessage = (failedIndex: number) => {
+    const failedMessage = chatMessages[failedIndex];
+    const userMessage = chatMessages[failedIndex - 1];
+    if (isLoadingRef.current || !failedMessage?.failed || userMessage?.role !== "user") return;
+
+    const history = chatMessages.slice(0, failedIndex - 1);
+    setChatMessages(history);
+    if (userMessage.mode === "character") handleSendCharacterQuery(userMessage.content, history);
+    else handleSendMessage(userMessage.content, history);
+  };
+
   const handleResetChat = () => {
+    activeChatRequestRef.current?.abort();
+    activeChatRequestRef.current = null;
+    setIsAwaitingFirstToken(false);
+    setIsLoading(false);
     stopSpeaking();
     setChatMessages([]);
     setCharacterResponse(null);
@@ -850,7 +918,7 @@ export default function ChatbotClient() {
     if (!isSpeaking && !isLoading) {
       const greeting = "അസ്സലാമു അലൈക്കും! ഞാൻ ഫുനൂൻ ഫിയസ്റ്റയുടെ 3D ലൈവ് എഐ അവതാരകനാണ്. മത്സര ഫലങ്ങൾ, ടീം സ്കോറുകൾ, പരിപാടികൾ എന്നിവയെക്കുറിച്ച് എന്നോട് സംസാരിക്കാം!";
       setCharacterResponse(greeting);
-      if (!speakText(greeting, true)) setHumanState("idle");
+      if (!speakText(greeting)) setHumanState("idle");
     }
   };
 
@@ -863,7 +931,11 @@ export default function ChatbotClient() {
 
   const sendCurrent = () => {
     const question = input.trim();
-    if (!question || isLoading) return;
+    if (!question || isLoadingRef.current) return;
+    if (question.length > 1200) {
+      setVoiceInputNotice("Please keep your question under 1,200 characters.");
+      return;
+    }
     sendText(question);
   };
 
@@ -1090,13 +1162,13 @@ export default function ChatbotClient() {
 
           {activeTab === "character" && (
             <div className="absolute inset-x-0 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] z-30 flex justify-center px-4 lg:inset-x-auto lg:bottom-9 lg:left-[clamp(3rem,6vw,7rem)] lg:justify-start lg:px-0">
-              <div className="flex max-w-[min(88vw,26rem)] items-center gap-2.5 rounded-full border border-white/45 bg-white/15 py-1.5 pl-1.5 pr-4 text-white shadow-[0_10px_24px_-14px_rgba(120,25,25,0.55)] backdrop-blur-md sm:gap-3 sm:pr-5">
+              <div className="flex max-w-[min(88vw,26rem)] items-center gap-2.5 rounded-full border border-white/40 bg-[#7E1D22]/45 py-1.5 pl-1.5 pr-4 text-white shadow-[0_10px_24px_-14px_rgba(60,10,10,0.7)] backdrop-blur-md sm:gap-3 sm:pr-5">
                 <button
                   type="button"
                   onClick={toggleListening}
-                  disabled={isLoading}
+                  disabled={isLoading && !liveMode}
                   aria-label={isListening ? "Stop listening and send" : isLoading ? "The host is preparing an answer" : "Start speaking"}
-                  aria-pressed={isListening}
+                  aria-pressed={isListening || liveMode}
                   className={cn(
                     "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition active:translate-y-0.5 disabled:cursor-wait disabled:opacity-55 sm:h-12 sm:w-12",
                     isListening ? "bg-[#DB3C3F] text-white shadow-[0_4px_0_#8F1F24]" : "bg-[#FBFF00] text-[#141414] shadow-[0_4px_0_#A9462A] hover:brightness-95",
@@ -1107,10 +1179,10 @@ export default function ChatbotClient() {
                 </button>
                 <div className="min-w-0" aria-live="polite">
                   <p className="text-[13px] font-bold sm:text-sm">
-                    {isListening ? "Listening… speak now" : isLoading ? "Preparing your answer…" : "Tap the microphone to speak"}
+                    {isListening ? "Listening… speak now" : liveMode ? (isLoading ? "Preparing your answer…" : "Host is speaking…") : "Tap to speak"}
                   </p>
                   <p className="mt-0.5 text-[10.5px] text-white/85 sm:text-[11px]">
-                    {isListening ? "Pause or tap the microphone to send" : "Ask in Malayalam; the host replies aloud"}
+                    {isListening ? "I answer when you pause · tap to send" : liveMode ? "Tap to interrupt" : "Ask your question in Malayalam"}
                   </p>
                   {isListening && input.trim() && (
                     <p className="mt-1 max-w-[60vw] truncate text-xs text-white/90">{input}</p>
@@ -1218,7 +1290,7 @@ export default function ChatbotClient() {
                       </div>
                       {msg.role === "assistant" && (
                         <div className="mt-0.5 flex items-center gap-0.5">
-                          <MessageAction onClick={() => speakText(msg.content, msg.mode === "character")} label="Read aloud">
+                          <MessageAction onClick={() => speakText(msg.content)} label="Read aloud">
                             <Volume2 size={13} />
                           </MessageAction>
                           <MessageAction onClick={() => handleCopyMessage(msg.content, index)} label={copiedIndex === index ? "Copied" : "Copy"}>
@@ -1229,11 +1301,24 @@ export default function ChatbotClient() {
                           )}
                         </div>
                       )}
+                      {msg.failed && index === chatMessages.length - 1 && (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                          <span className="text-[11px] text-[#8A7468]">The assistant couldn't finish this reply.</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRetryMessage(index)}
+                            disabled={isLoading}
+                            className="inline-flex items-center gap-1 rounded-full bg-[#FFF1E6] px-2.5 py-1 text-[11px] font-semibold text-[#B4481B] transition hover:bg-[#FFE4CF] disabled:opacity-50"
+                          >
+                            <RotateCcw size={12} /> Retry answer
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 ))}
 
-                {isLoading && (
+                {isLoading && isAwaitingFirstToken && (
                   <div className="flex items-center gap-2.5" aria-label="The host is preparing an answer">
                     <BrandMark className="h-8 w-8" small />
                     <div className="flex items-center gap-2 rounded-[20px] rounded-tl-md border border-black/[0.05] bg-[#FAF7F3] px-4 py-3">
@@ -1258,14 +1343,19 @@ export default function ChatbotClient() {
                 {voiceInputNotice}
               </p>
             )}
+            {voicePlaybackNotice && (
+              <p role="status" className="mx-auto mb-2 max-w-2xl rounded-xl bg-[#FFF4E8] px-3 py-2 text-center text-xs font-medium text-[#8F471E]">
+                {voicePlaybackNotice}
+              </p>
+            )}
             {isCharacterMode ? (
               <div className="mx-auto flex max-w-2xl flex-col items-center gap-2">
                 <button
                   type="button"
                   onClick={toggleListening}
-                  disabled={isLoading}
+                  disabled={isLoading && !liveMode}
                   aria-label={isListening ? "Stop listening and send" : isLoading ? "The host is preparing an answer" : "Start speaking"}
-                  aria-pressed={isListening}
+                  aria-pressed={isListening || liveMode}
                   className={cn(
                     "relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full shadow-md transition active:scale-95 disabled:cursor-wait disabled:opacity-55",
                     isListening ? "bg-sky-500 text-white shadow-sky-500/25" : "bg-[#70B040] text-white shadow-[#70B040]/25 hover:bg-[#5F9630]",
@@ -1276,10 +1366,10 @@ export default function ChatbotClient() {
                 </button>
                 <div className="text-center" aria-live="polite">
                   <p className="text-[13px] font-bold text-[#35412F]">
-                    {isListening ? "Listening… speak now" : isLoading ? "Preparing your answer…" : "Tap the microphone to speak"}
+                    {isListening ? "Listening… speak now" : liveMode ? (isLoading ? "Preparing your answer…" : "Host is speaking…") : "Tap to speak"}
                   </p>
                   <p className="mt-0.5 text-[11px] text-[#838A7C]">
-                    {isListening ? "Pause or tap the microphone to send" : "Ask in Malayalam; the host replies aloud"}
+                    {isListening ? "I answer when you pause · tap to send" : liveMode ? "Tap to interrupt" : "Ask your question in Malayalam"}
                   </p>
                 </div>
                 {isListening && input.trim() && (
@@ -1297,7 +1387,7 @@ export default function ChatbotClient() {
                     onClick={toggleListening}
                     disabled={isLoading}
                     aria-label={isListening ? "Stop listening and send" : "Ask by voice"}
-                    aria-pressed={isListening}
+                    aria-pressed={isListening || liveMode}
                     className={cn(
                       "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition active:scale-95 disabled:opacity-50",
                       isListening ? "bg-[#D9383F] text-white" : "bg-[#FFF1E6] text-[#D9531F] hover:bg-[#FFE4CF]",
@@ -1312,8 +1402,9 @@ export default function ChatbotClient() {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     rows={1}
+                    maxLength={1200}
                     disabled={isListening}
-                    placeholder={isListening ? "Listening… tap the mic to send" : "Ask about scores, results…"}
+                    placeholder={isListening ? "Listening… tap the mic to send" : "Ask about scores, results, programs, or rules…"}
                     aria-label="Your question"
                     className="max-h-[140px] min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-[16px] leading-6 text-[#1E1B18] outline-none placeholder:text-[#B3A99F]"
                   />

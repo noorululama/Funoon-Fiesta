@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { ArrowUpRight, CheckCircle2, Clock, Calculator } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, Clock, Calculator, Bot, AlertTriangle } from "lucide-react";
+import { getAiStatus } from "@/lib/ai-status";
+import { getGeminiKeyStatus } from "@/lib/ai-key";
 
 import { LiveScorePie } from "@/components/live-score-pie";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +26,11 @@ async function getDashboardData() {
     getLiveScores(),
   ]);
 
+  const [aiStatus, aiKey] = await Promise.all([getAiStatus(), getGeminiKeyStatus()]);
+
   return {
+    aiStatus,
+    aiKey,
     stats: [
       { label: "Total Programs", value: programs.length },
       { label: "Participants", value: students.length },
@@ -61,6 +67,33 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* AI assistant status */}
+      <Link
+        href="/admin/settings?tab=ai"
+        className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 text-white transition hover:brightness-110 ${
+          data.aiStatus.limitActive ? "border-red-400/50 bg-red-500/15" : "border-white/10 bg-white/5"
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${data.aiStatus.limitActive ? "bg-red-500/30 text-red-200" : "bg-emerald-500/20 text-emerald-300"}`}>
+            {data.aiStatus.limitActive ? <AlertTriangle className="h-5 w-5" /> : <Bot className="h-5 w-5" />}
+          </span>
+          <div>
+            <p className="text-sm font-semibold">
+              AI Assistant · {data.aiStatus.limitActive ? "API limit reached" : data.aiKey.source === "none" ? "No API key" : "Working"}
+            </p>
+            <p className="text-xs text-white/65">
+              {data.aiStatus.limitActive
+                ? `The Gemini key hit its usage limit${data.aiStatus.limitHitAt ? ` on ${new Date(data.aiStatus.limitHitAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}` : ""}. Visitors see a "try again later" message. It clears by itself once an answer succeeds, or change the key here.`
+                : data.aiKey.source === "none"
+                ? "Add a Gemini API key so the assistant can answer."
+                : `Key: ${data.aiKey.masked}${data.aiStatus.limitHits ? ` · limit hit ${data.aiStatus.limitHits}× so far` : ""}`}
+            </p>
+          </div>
+        </div>
+        <span className="text-xs font-semibold text-white/70">{data.aiStatus.limitActive ? "Change key →" : "Manage →"}</span>
+      </Link>
+
       <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
           <div className="rounded-3xl border border-white/10 bg-linear-to-br from-indigo-900/70 via-fuchsia-900/50 to-emerald-900/40 p-5 sm:p-8 text-white shadow-[0_25px_80px_rgba(14,165,233,0.15)]">
             <div className="flex flex-wrap items-center justify-between gap-4">

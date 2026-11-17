@@ -26,7 +26,7 @@ export function FestieHeroSection({ stats = [] }: { stats?: FestStat[] }) {
   const pathname = usePathname();
 
   return (
-    <section className="relative overflow-hidden bg-white px-2 pb-10 pt-2 sm:px-2.5 sm:pt-2.5 lg:px-8 lg:pb-[5rem] lg:pt-4 xl:px-12 2xl:px-20">
+    <section className="relative overflow-hidden bg-white px-0 pb-10 pt-0 sm:px-2.5 sm:pt-2.5 lg:px-8 lg:pb-[5rem] lg:pt-4 xl:px-12 2xl:px-20">
       {/* Faint dot grid on the page behind the card */}
       <div
         aria-hidden
@@ -36,7 +36,7 @@ export function FestieHeroSection({ stats = [] }: { stats?: FestStat[] }) {
 
       <div className="relative mx-auto w-full max-w-[1760px]">
         {/* ══════════ Gradient card ══════════ */}
-        <div className="relative min-h-[640px] rounded-[28px] bg-[linear-gradient(135deg,#F0A220_0%,#EC8230_30%,#E4602F_62%,#DB3C3F_100%)] sm:rounded-[36px] lg:min-h-[calc(100svh-7.5rem)] lg:rounded-[44px]">
+        <div className="relative min-h-[640px] rounded-none bg-[linear-gradient(135deg,#F0A220_0%,#EC8230_30%,#E4602F_62%,#DB3C3F_100%)] sm:rounded-[36px] lg:min-h-[calc(100svh-7.5rem)] lg:rounded-[44px]">
           {/* Tonal logo pattern */}
           <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
             <div className="absolute -right-[4%] -top-[14%] h-[95%] w-[50%] opacity-[0.08]">

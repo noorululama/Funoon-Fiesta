@@ -4,7 +4,6 @@ import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 
 import { ToastProvider } from "@/components/toast-provider";
-import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { OfflineIndicator } from "@/components/offline-indicator";
 import { RealtimeProvider } from "@/components/realtime-provider";
 import { PublicPageWrapper } from "@/components/public-page-wrapper";
@@ -123,7 +122,6 @@ export default function RootLayout({
               {children}
             </PublicPageWrapper>
           </ToastProvider>
-          <PWAInstallPrompt />
         </RealtimeProvider>
         <JsonLd />
       </body>

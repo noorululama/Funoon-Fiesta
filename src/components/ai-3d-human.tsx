@@ -136,7 +136,12 @@ export function Ai3dHuman({
     };
 
     const init = async () => {
-      if (started || cancelled || container.clientWidth === 0) return;
+      if (started || cancelled) return;
+      // Not laid out yet (hidden tab, resizing): try again shortly instead of never starting.
+      if (container.clientWidth === 0) {
+        setTimeout(() => void init(), 250);
+        return;
+      }
       started = true;
       try {
         if (await hasRealisticModel()) {

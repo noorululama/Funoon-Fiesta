@@ -591,12 +591,23 @@ export const PosterTemplateModel =
 interface AiSettingsDoc {
   key: string;
   geminiApiKey?: string;
+  // AI assistant health (shown in the admin dashboard)
+  limitActive?: boolean;
+  limitHitAt?: Date | null;
+  limitMessage?: string;
+  limitHits?: number;
+  lastOkAt?: Date | null;
 }
 
 const AiSettingsSchema = new Schema<AiSettingsDoc>(
   {
     key: { type: String, required: true, unique: true, default: "ai" },
     geminiApiKey: { type: String, default: "" },
+    limitActive: { type: Boolean, default: false },
+    limitHitAt: { type: Date, default: null },
+    limitMessage: { type: String, default: "" },
+    limitHits: { type: Number, default: 0 },
+    lastOkAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

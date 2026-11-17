@@ -10,6 +10,7 @@ import { LiveScorePulse } from "@/components/live-score-pulse";
 import { TeamLeadersShowcase } from "@/components/team-leaders-showcase";
 import { HomeEngagementSection } from "@/components/HomeEngagementSection";
 import { AboutSection } from "@/components/AboutSection";
+import { HomeInstallSection } from "@/components/HomeInstallSection";
 
 import { useScoreboardUpdates } from "@/hooks/use-realtime";
 import { useRouter } from "next/navigation";
@@ -34,7 +35,7 @@ export function HomeRealtime({ teams: initialTeams, liveScores: initialLiveScore
   ];
 
   return (
-    <main className="space-y-16">
+    <main className="space-y-16 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-0">
       {/* Hero + festival numbers share one white block (no gap between them) */}
       <div className="bg-white">
         <FestieHeroSection stats={festStats} />
@@ -116,6 +117,9 @@ export function HomeRealtime({ teams: initialTeams, liveScores: initialLiveScore
           </div>
         </div>
       </section>
+
+      <HomeInstallSection />
+
     </main>
   );
 }

@@ -4,6 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { connectDB } from "@/lib/db";
 import { AiSettingsModel } from "@/lib/models";
 import { isAdminAuthenticated } from "@/lib/auth";
+import { clearAiLimit } from "@/lib/ai-status";
 import { getGeminiApiKey, getGeminiKeyStatus, invalidateGeminiKeyCache } from "@/lib/ai-key";
 
 type Result = { ok: boolean; message: string };
@@ -54,6 +55,7 @@ export async function saveGeminiKeyAction(formData: FormData): Promise<Result> {
       { upsert: true },
     );
     invalidateGeminiKeyCache();
+    await clearAiLimit();
     return { ok: true, message: `Saved. ${verdict.message} The assistant uses it right away.` };
   } catch {
     return { ok: false, message: "Could not save the key." };
