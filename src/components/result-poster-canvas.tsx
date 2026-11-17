@@ -293,8 +293,11 @@ export async function generateResultPoster(
     ctx.font = `${pConfig.fontWeight || "normal"} ${fontSize}px ${pConfig.fontFamily || "sans-serif"}`;
 
     const maxWidth = (pConfig.maxWidth || 940) * scaleX;
-    const displayProgram = truncateText(ctx, (data.programName || "Program Name").toLocaleUpperCase(), maxWidth);
-    ctx.fillText(displayProgram, posX, posY);
+    const programLines = wrapText(ctx, (data.programName || "Program Name").toLocaleUpperCase(), maxWidth);
+    const lineHeight = fontSize * 1.15;
+    programLines.forEach((line, index) => {
+      ctx.fillText(line, posX, posY + (index - (programLines.length - 1) / 2) * lineHeight);
+    });
   }
 
   // 4. Section / Category
@@ -316,7 +319,7 @@ export async function generateResultPoster(
       : "General";
 
     const maxWidth = (sConfig.maxWidth || 940) * scaleX;
-    const displaySection = truncateText(ctx, sectionLabel, maxWidth);
+    const displaySection = truncateText(ctx, sectionLabel.toLocaleUpperCase(), maxWidth);
     ctx.fillText(displaySection, posX, posY);
   }
 
