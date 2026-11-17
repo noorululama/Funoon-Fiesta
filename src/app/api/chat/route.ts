@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getFestDataForAI } from "@/lib/chatbot-service";
 import { NextResponse } from "next/server";
+import { getGeminiApiKey } from "@/lib/ai-key";
 
 const ALL_MODELS = [
     "gemini-3.8-flash",
@@ -47,7 +48,7 @@ async function openStream(genAI: GoogleGenerativeAI, modelName: string, prompt: 
 
 export async function POST(req: Request) {
     try {
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = await getGeminiApiKey();
         if (!apiKey) {
             return NextResponse.json(
                 { error: "Gemini API key not configured" },

@@ -76,8 +76,8 @@ export function ParticipantSearch() {
         <div className="w-full max-w-2xl mx-auto">
             <div className="relative group">
                 <div className="absolute inset-0 bg-[linear-gradient(135deg,#F0A220,#DB3C3F)] rounded-2xl blur opacity-25 group-hover:opacity-40 transition-opacity"></div>
-                <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-2 flex items-center gap-2 border border-gray-100 dark:border-gray-700">
-                    <div className="flex-1 flex items-center gap-3 px-3">
+                <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-2 pb-[calc(0.5rem+3px)] flex items-center gap-2 border border-gray-100 dark:border-gray-700">
+                    <div className="flex min-w-0 flex-1 items-center gap-3 px-3">
                         <Search className="w-5 h-5 text-gray-400" />
                         <input
                             type="text"
@@ -88,12 +88,12 @@ export function ParticipantSearch() {
                         />
                         {isSearching && <Loader2 className="w-4 h-4 animate-spin text-[#E4602F]" />}
                     </div>
-                    <div className="h-8 w-px bg-gray-200 dark:bg-gray-700"></div>
+                    <div className="h-6 w-px shrink-0 bg-gray-200 dark:bg-gray-700"></div>
                     <Button
                         onClick={() => setShowScanner(true)}
-                        className="bg-[#FBFF00] hover:bg-[#FBFF00] text-[#C72F36] font-bold rounded-xl px-4 py-2 h-auto shadow-[0_3px_0_#A9462A] active:translate-y-[2px] active:shadow-[0_1px_0_#A9462A]"
+                        className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-[#FBFF00] px-4 py-0 text-[#C72F36] font-bold leading-none hover:bg-[#FBFF00] shadow-[0_3px_0_#A9462A] active:translate-y-[2px] active:shadow-[0_1px_0_#A9462A]"
                     >
-                        <QrCode className="w-4 h-4 mr-2" />
+                        <QrCode className="h-4 w-4 shrink-0" />
                         Scan
                     </Button>
                 </div>

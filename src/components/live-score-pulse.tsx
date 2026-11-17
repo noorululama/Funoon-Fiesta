@@ -107,7 +107,9 @@ function getTeamColorStyles(colorInput?: string, teamName?: string, index: numbe
 
   // Calculate relative luminance to guarantee WCAG high contrast readability
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  const isLight = luminance > 0.62;
+  // Light team colours (e.g. yellow) get a deeper card gradient so white text stays readable.
+  const isVeryLight = luminance > 0.62;
+  const isLight = false; // card text is always white
 
   // Darker shade for contrast & rich card gradients (approx 28% darker)
   const dr = Math.max(0, Math.round(r * 0.72));
@@ -136,7 +138,9 @@ function getTeamColorStyles(colorInput?: string, teamName?: string, index: numbe
     darker,
     lighter,
     light: rgba(0.12),
-    cardBg: `linear-gradient(135deg, ${rawColor} 0%, ${darker} 100%)`,
+    cardBg: isVeryLight
+      ? `linear-gradient(135deg, rgb(${Math.round(r * 0.78)}, ${Math.round(g * 0.78)}, ${Math.round(b * 0.78)}) 0%, rgb(${Math.round(r * 0.55)}, ${Math.round(g * 0.55)}, ${Math.round(b * 0.55)}) 100%)`
+      : `linear-gradient(135deg, ${rawColor} 0%, ${darker} 100%)`,
     cardBorder,
     textColor,
     textMuted,

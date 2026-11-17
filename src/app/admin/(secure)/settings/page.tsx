@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { updateAdminCredentials } from "./actions";
 import { getDatabaseStats, restoreDatabase } from "./backup-actions";
 import { RulesConfigSection } from "./rules-form";
+import { AiKeySection } from "./ai-key-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -211,6 +212,7 @@ function SettingsContent() {
                     >
                         <option value="rules" className="bg-slate-900 text-white">🎯 Festival Rules & Points</option>
                         <option value="backup" className="bg-slate-900 text-white">💾 Data Management & Backup</option>
+                        <option value="ai" className="bg-slate-900 text-white">🤖 AI Assistant Key</option>
                         <option value="credentials" className="bg-slate-900 text-white">🔐 Admin Credentials</option>
                         <option value="all" className="bg-slate-900 text-white">⚙️ View All Sections</option>
                     </select>
@@ -221,6 +223,8 @@ function SettingsContent() {
             {(activeTab === "rules" || activeTab === "all") && <RulesConfigSection />}
 
             {(activeTab === "backup" || activeTab === "all") && <BackupRestoreSection />}
+
+            {(activeTab === "ai" || activeTab === "all") && <AiKeySection />}
 
             {(activeTab === "credentials" || activeTab === "all") && (
                 <Card className="bg-white/5 border border-white/10 text-white">

@@ -46,7 +46,7 @@ export function FestieHeroSection({ stats = [] }: { stats?: FestStat[] }) {
           </div>
 
           {/* Wavy white bottom edge */}
-          <div aria-hidden className="pointer-events-none absolute -inset-x-[2px] -bottom-[2px] z-10">
+          <div aria-hidden className="pointer-events-none absolute -inset-x-[2px] -bottom-[2px] z-10 lg:hidden">
             <svg viewBox="0 0 1440 121" preserveAspectRatio="none" className="block h-[64px] w-full sm:h-[92px] lg:h-[120px]">
               <path fill="#fff" d="M0,62 C100,58 180,50 265,50 C420,50 480,80 635,80 C800,80 880,30 1040,30 C1180,30 1330,38 1440,46 L1440,121 L0,121 Z" />
             </svg>
@@ -115,8 +115,8 @@ export function FestieHeroSection({ stats = [] }: { stats?: FestStat[] }) {
 
             <div className="mt-8 flex items-center justify-between gap-3 md:block">
               <div className="flex flex-col items-start gap-y-4 md:flex-row md:flex-wrap md:items-center md:gap-x-12">
-                <HeroCta href="/scoreboard" label="Explore Now" />
                 <HeroCta href="/festory" label="Festory" pill />
+                <HeroCta href="/scoreboard" label="Explore Now" />
               </div>
               {/* Small screens: hourglass sits to the right of the buttons so the hero fits one screen */}
               <AnimatedHourglass className="pointer-events-none h-auto w-[34%] max-w-[150px] shrink-0 animate-[hero-float_6s_ease-in-out_infinite] drop-shadow-[0_14px_18px_rgba(90,30,10,0.25)] md:hidden" />

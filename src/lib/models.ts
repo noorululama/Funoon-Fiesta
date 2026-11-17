@@ -586,3 +586,21 @@ export const PosterTemplateModel =
   (models.PosterTemplate as Model<PosterTemplate>) ??
   model<PosterTemplate>("PosterTemplate", PosterTemplateSchema);
 
+
+// Runtime-editable settings for the AI assistant (e.g. the Gemini API key).
+interface AiSettingsDoc {
+  key: string;
+  geminiApiKey?: string;
+}
+
+const AiSettingsSchema = new Schema<AiSettingsDoc>(
+  {
+    key: { type: String, required: true, unique: true, default: "ai" },
+    geminiApiKey: { type: String, default: "" },
+  },
+  { timestamps: true },
+);
+
+export const AiSettingsModel =
+  (models.AiSettings as Model<AiSettingsDoc>) ??
+  model<AiSettingsDoc>("AiSettings", AiSettingsSchema);

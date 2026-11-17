@@ -28,7 +28,21 @@ import { cn } from "@/lib/utils";
 import { Ai3dHuman, type HumanState } from "@/components/ai-3d-human";
 
 // 44-byte silent clip used to unlock audio playback on phones after the first tap.
-const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+// ~0.1s of silence. iOS rejects a zero-length clip, so the player never got unlocked.
+const SILENT_WAV = (() => {
+  const samples = 800;
+  const bytes = new Uint8Array(44 + samples);
+  const view = new DataView(bytes.buffer);
+  const text = (o: number, t: string) => [...t].forEach((c, i) => view.setUint8(o + i, c.charCodeAt(0)));
+  text(0, "RIFF"); view.setUint32(4, 36 + samples, true); text(8, "WAVE"); text(12, "fmt ");
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, 8000, true); view.setUint32(28, 8000, true); view.setUint16(32, 1, true); view.setUint16(34, 8, true);
+  text(36, "data"); view.setUint32(40, samples, true);
+  bytes.fill(128, 44);
+  let bin = "";
+  bytes.forEach((b) => (bin += String.fromCharCode(b)));
+  return `data:audio/wav;base64,${btoa(bin)}`;
+})();
 
 /** Split text into short spoken chunks so the first sound starts quickly and long answers never cut off. */
 function splitForSpeech(text: string, max = 220): string[] {
@@ -206,6 +220,7 @@ export default function ChatbotClient() {
      Fallback: the best male voice the browser itself offers. */
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUnlockedRef = useRef(false);
+  const recLangRef = useRef<string | null>(null);
   const speechEpochRef = useRef(0);
   const ttsQueueRef = useRef<{ text: string; isMl: boolean; epoch: number; promise: Promise<string> }[]>([]);
   const ttsPlayingRef = useRef(false);
@@ -225,6 +240,14 @@ export default function ChatbotClient() {
   // Phones only allow audio that started from a tap: warm the player up on the first tap.
   const unlockAudio = useCallback(() => {
     if (audioUnlockedRef.current) return;
+    // iOS only lets speechSynthesis speak later if it was started once inside a tap.
+    try {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        const prime = new SpeechSynthesisUtterance(" ");
+        prime.volume = 0;
+        window.speechSynthesis.speak(prime);
+      }
+    } catch {}
     const a = getAudio();
     if (!a) return;
     a.src = SILENT_WAV;
@@ -476,7 +499,7 @@ export default function ChatbotClient() {
       (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setVoiceInputNotice("Speech recognition isn't supported in this browser. Try another browser with microphone support.");
+      setVoiceInputNotice("Voice input isn't available here. On iPhone, open this page in Safari (not Chrome or an in-app browser), or use Text chat.");
       return;
     }
 
@@ -492,7 +515,7 @@ export default function ChatbotClient() {
       recognitionRef.current = recognition;
 
       // Character mode listens in Malayalam; Chat mode listens in en-US
-      recognition.lang = activeTab === "character" ? "ml-IN" : "en-US";
+      recognition.lang = recLangRef.current ?? (activeTab === "character" ? "ml-IN" : "en-US");
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
 
@@ -551,9 +574,16 @@ export default function ChatbotClient() {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         setIsListening(false);
         setHumanState("idle");
+        // iPhones often cannot recognise Malayalam: retry once with Indian English.
+        if (event.error === "language-not-supported" && recognition.lang !== "en-IN") {
+          recLangRef.current = "en-IN";
+          setVoiceInputNotice("Malayalam voice input isn't available on this phone, so I'm listening in English instead.");
+          setTimeout(() => toggleListening(), 250);
+          return;
+        }
         setVoiceInputNotice(
           event.error === "not-allowed" || event.error === "service-not-allowed"
-            ? "Allow microphone access in your browser settings, then tap the microphone to try again."
+            ? "Allow microphone access, then tap the microphone again. On iPhone also turn on Siri & Dictation in Settings."
             : event.error === "no-speech"
             ? "I didn't hear speech. Tap the microphone and try again."
             : "Voice input isn't available right now. Try again."
@@ -1285,7 +1315,7 @@ export default function ChatbotClient() {
                     disabled={isListening}
                     placeholder={isListening ? "Listening… tap the mic to send" : "Ask about scores, results…"}
                     aria-label="Your question"
-                    className="max-h-[140px] min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-[15px] leading-6 text-[#1E1B18] outline-none placeholder:text-[#B3A99F]"
+                    className="max-h-[140px] min-h-10 flex-1 resize-none bg-transparent px-1 py-2 text-[16px] leading-6 text-[#1E1B18] outline-none placeholder:text-[#B3A99F]"
                   />
                   <button
                     type="submit"
