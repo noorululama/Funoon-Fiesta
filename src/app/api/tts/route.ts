@@ -60,7 +60,9 @@ async function fallbackSpeech(text: string): Promise<Response> {
     out.set(c, offset);
     offset += c.length;
   }
-  return new Response(out as BodyInit, { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=3600" } });
+  return new Response(out as BodyInit, {
+    headers: { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=3600", "X-Voice": "fallback" },
+  });
 }
 
 export async function POST(req: Request) {

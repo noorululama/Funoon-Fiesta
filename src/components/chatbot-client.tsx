@@ -5,7 +5,6 @@ import {
   Mic,
   Volume2,
   VolumeX,
-  Sparkles,
   Trophy,
   CalendarDays,
   Medal,
@@ -164,7 +163,7 @@ const INSTANT_INTENTS: { regex: RegExp; reply: string }[] = [
 ];
 
 export default function ChatbotClient() {
-  const [activeTab, setActiveTab] = useState<AIMode>("chat");
+  const [activeTab, setActiveTab] = useState<AIMode>("character");
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoadingState] = useState(false);
@@ -310,6 +309,7 @@ export default function ChatbotClient() {
       ttsPlayingRef.current = true;
 
       let url: string;
+      let isFallbackVoice = false;
       try {
         const response = await fetch("/api/tts", {
           method: "POST",
@@ -320,6 +320,7 @@ export default function ChatbotClient() {
           const details = await response.json().catch(() => null);
           throw Object.assign(new Error(details?.error ?? "Male voice unavailable"), { code: details?.code });
         }
+        isFallbackVoice = response.headers.get("X-Voice") === "fallback";
         url = URL.createObjectURL(await response.blob());
       } catch (error) {
         if (item.epoch === speechEpochRef.current) reportVoiceIssue(error);
@@ -353,6 +354,13 @@ export default function ChatbotClient() {
         if (item.epoch === speechEpochRef.current) reportVoiceIssue();
       };
       audio.src = url;
+      // The built-in fallback voice is female: lower its pitch so the host sounds male.
+      // (Azure's male neural voice needs no adjustment.)
+      const pitchable = audio as HTMLAudioElement & { preservesPitch?: boolean; webkitPreservesPitch?: boolean };
+      pitchable.preservesPitch = !isFallbackVoice;
+      pitchable.webkitPreservesPitch = !isFallbackVoice;
+      audio.defaultPlaybackRate = isFallbackVoice ? 0.84 : 1;
+      audio.playbackRate = audio.defaultPlaybackRate;
       try {
         await audio.play();
         setVoicePlaybackNotice(null);
@@ -388,6 +396,8 @@ export default function ChatbotClient() {
         .replace(/\[(.*?)\]\(.*?\)/g, "$1")
         .replace(/\|.*?\|/g, " ")
         .replace(/[•●▪-]\s+/g, "")
+        // Say "3D" like the English "three D", not as the Malayalam number "moonnu di".
+        .replace(/3\s?[Dd](?![A-Za-z0-9])/g, " ത്രീ ഡി ")
         .replace(/&/g, " കൂടാതെ ")
         .replace(/%/g, " ശതമാനം ")
         .replace(/\//g, " അല്ലെങ്കിൽ ")
@@ -779,17 +789,10 @@ export default function ChatbotClient() {
     let shown = false;
     let queuedSpeech = false;
     let speechBuffer = "";
+    // Text chat is silent: answers are only read aloud when the user taps "Read aloud" on a message.
     const speakReady = (flush = false) => {
-      let match: RegExpMatchArray | null;
-      while ((match = speechBuffer.match(/^([\s\S]*?(?:[.!?।]\s|\n))/))) {
-        const sentence = match[1].trim();
-        speechBuffer = speechBuffer.slice(match[0].length);
-        if (sentence && speakText(sentence, false)) queuedSpeech = true;
-      }
-      if (flush && speechBuffer.trim()) {
-        if (speakText(speechBuffer.trim(), false)) queuedSpeech = true;
-        speechBuffer = "";
-      }
+      void flush;
+      speechBuffer = "";
     };
     const showAnswer = () => {
       // React runs state updaters later, so read `shown`/`answer` now. Otherwise the first update
@@ -1052,11 +1055,7 @@ export default function ChatbotClient() {
 
           {/* Fest hero copy (large screens) */}
           <div className="pointer-events-none absolute inset-y-0 left-0 z-20 hidden w-[44%] flex-col justify-center pb-44 pl-[clamp(3rem,6vw,7rem)] pt-28 lg:flex">
-            <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/45 bg-white/20 px-3.5 py-1.5 font-hero-sans text-[12px] font-semibold uppercase tracking-[0.14em] text-white backdrop-blur-md">
-              <Sparkles size={13} className="text-[#FBFF00]" />
-              Official festival assistant
-            </span>
-            <h2 className="mt-5">
+            <h2 className="mt-0">
               <span className="sr-only">Funoon AI Assistant</span>
               <Image
                 src="/img/hero/fest-typo.png"
@@ -1200,48 +1199,22 @@ export default function ChatbotClient() {
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
             {!hasChatStarted ? (
               <div className="mx-auto flex min-h-full max-w-xl flex-col">
-                <div className="my-auto py-1">
-                <div className="relative mb-5 overflow-hidden rounded-[26px] bg-[linear-gradient(135deg,#F0A220_0%,#EC8230_30%,#E4602F_62%,#DB3C3F_100%)] px-5 py-7 text-center text-white shadow-[0_18px_36px_-22px_rgba(190,50,40,0.7)] sm:mb-7 sm:px-8 sm:py-9">
-                  <div aria-hidden className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/15" />
-                  <div aria-hidden className="pointer-events-none absolute -bottom-12 -left-8 h-36 w-36 rounded-full bg-white/10" />
-                  <div className="relative flex flex-col items-center">
-                    <BrandMark className="h-14 w-14 sm:h-16 sm:w-16" glow />
-                    <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-white/45 bg-white/20 px-3 py-1 font-hero-sans text-[11px] font-semibold uppercase tracking-[0.12em] text-white">
-                      <Sparkles size={12} className="text-[#FBFF00]" />
-                      Official festival assistant
-                    </span>
-                    <h2 className="mt-3">
-                      <span className="sr-only">Ask anything about Funoon Fiesta</span>
-                      <Image
-                        src="/img/hero/fest-typo.png"
-                        alt=""
-                        width={1400}
-                        height={796}
-                        className="h-auto w-[min(72%,15rem)] [filter:drop-shadow(0.2rem_0.2rem_0_#A92A2B)]"
-                      />
+                <div className="my-auto py-4">
+                  <div className="mb-6 rounded-3xl border border-black/[0.06] bg-[#F7F7F8] px-5 py-7 text-center sm:mb-7 sm:px-8 sm:py-9">
+                    <h2 className="text-2xl font-semibold tracking-tight text-[#202124] sm:text-3xl">
+                      How can I help?
                     </h2>
-                    <p className="mt-3 max-w-md font-hero-sans text-[14px] leading-relaxed text-white/95 sm:text-[15px]">
-                      {isCharacterMode
-                        ? "Tap the microphone and ask in Malayalam. The host will answer aloud."
-                        : "Scores, results, programs and rules, answered instantly in English or Malayalam."}
+                    <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#66666B] sm:text-base">
+                      Ask about Funoon Fiesta scores, results, programmes, or rules.
                     </p>
                   </div>
-                </div>
-                {isCharacterMode ? (
-                  <div className="mx-auto flex max-w-md items-center justify-center gap-3 rounded-2xl border border-[#70B040]/15 bg-[#70B040]/[0.06] px-4 py-3 text-center">
-                    <Mic size={18} className="shrink-0 text-[#4E8732]" aria-hidden="true" />
-                    <p className="text-[13px] font-medium leading-relaxed text-[#53614C]">
-                      Tap the microphone below and speak naturally. Pause when you finish to send your question.
-                    </p>
-                  </div>
-                ) : (
                   <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                     {CHAT_SUGGESTIONS.map((item) => (
                       <button
                         key={item.label}
                         onClick={() => sendText(item.text)}
                         disabled={isLoading || isListening}
-                        className="group relative flex flex-col items-start gap-2.5 overflow-hidden rounded-[20px] border border-black/[0.06] bg-white p-3 text-left sm:flex-row sm:gap-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition duration-200 hover:-translate-y-0.5 hover:border-[#F0952A]/40 hover:shadow-[0_14px_30px_-18px_rgba(217,56,63,0.45)] active:translate-y-0 disabled:pointer-events-none disabled:opacity-60 sm:items-start sm:p-4"
+                        className="group relative flex flex-col items-start gap-2.5 overflow-hidden rounded-[20px] border border-black/[0.06] bg-white p-3 text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition duration-200 hover:-translate-y-0.5 hover:border-[#F0952A]/40 hover:shadow-[0_14px_30px_-18px_rgba(217,56,63,0.45)] active:translate-y-0 disabled:pointer-events-none disabled:opacity-60 sm:flex-row sm:items-start sm:gap-3 sm:p-4"
                       >
                         <PremiumIcon icon={item.icon} tile={item.tile} />
                         <span className="min-w-0 flex-1 sm:pr-5">
@@ -1255,7 +1228,6 @@ export default function ChatbotClient() {
                       </button>
                     ))}
                   </div>
-                )}
                 </div>
               </div>
             ) : (
