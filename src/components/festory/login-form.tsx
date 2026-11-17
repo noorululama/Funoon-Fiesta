@@ -79,7 +79,7 @@ export function FestoryLoginForm() {
     }, []); // Empty dependency array = Runs once on mount
 
     return (
-        <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        <div className="min-h-screen bg-white text-neutral-900 flex flex-col items-center justify-center p-4 relative overflow-hidden">
             <Script
                 src="https://accounts.google.com/gsi/client"
                 strategy="lazyOnload"
@@ -91,11 +91,11 @@ export function FestoryLoginForm() {
             />
 
             {/* w-full fixed to prevent potential layout shift from scrollbars */}
-            <div className="fixed inset-0 w-full h-full bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-purple-900/40 via-black to-black z-0 pointer-events-none" />
+            <div className="fixed inset-0 w-full h-full bg-[linear-gradient(135deg,#F0A220_0%,#EC8230_30%,#E4602F_62%,#DB3C3F_100%)] z-0 pointer-events-none" />
 
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none opacity-30">
-                <div className="absolute -top-[20%] -left-[20%] w-[50%] h-[50%] bg-fuchsia-600/20 blur-[120px] rounded-full animate-blob" />
-                <div className="absolute bottom-[0%] -right-[10%] w-[40%] h-[40%] bg-blue-600/20 blur-[100px] rounded-full animate-blob animation-delay-2000" />
+                <div className="absolute -top-[20%] -left-[20%] w-[50%] h-[50%] bg-[#FBFF00]/30 blur-[120px] rounded-full animate-blob" />
+                <div className="absolute bottom-[0%] -right-[10%] w-[40%] h-[40%] bg-[#A92A2B]/30 blur-[100px] rounded-full animate-blob animation-delay-2000" />
             </div>
 
             <motion.div
@@ -109,15 +109,15 @@ export function FestoryLoginForm() {
                         initial={{ y: -20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.2 }}
-                        className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-gradient-to-br from-fuchsia-500 to-purple-600 mb-6 shadow-2xl shadow-purple-500/30"
+                        className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-[#FBFF00] mb-6 shadow-[0_5px_0_#A9462A]"
                     >
-                        <Music2 className="w-8 h-8 text-white" />
+                        <Music2 className="w-8 h-8 text-[#C72F36]" />
                     </motion.div>
                     <motion.h1
                         initial={{ y: 10, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.3 }}
-                        className="text-4xl md:text-5xl font-black tracking-tight mb-2"
+                        className="font-hero-stat text-4xl md:text-5xl font-black uppercase tracking-tight mb-2 text-[#FBFF00] [text-shadow:0_3px_0_#A92A2B]"
                     >
                         FESTORY
                     </motion.h1>
@@ -125,7 +125,7 @@ export function FestoryLoginForm() {
                         initial={{ y: 10, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.4 }}
-                        className="text-white/60 text-lg"
+                        className="text-white/90 text-lg"
                     >
                         The Social Pulse of Funoon Fiesta
                     </motion.p>
@@ -135,19 +135,19 @@ export function FestoryLoginForm() {
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.5 }}
-                    className="bg-zinc-900/50 backdrop-blur-xl border border-white/10 p-6 md:p-8 rounded-3xl shadow-2xl"
+                    className="bg-white backdrop-blur-xl border border-orange-900/10 p-6 md:p-8 rounded-3xl shadow-2xl"
                 >
                     {/* Toggle Switch */}
-                    <div className="flex p-1 bg-white/5 rounded-xl mb-6 border border-white/5">
+                    <div className="flex p-1 bg-orange-50 rounded-xl mb-6 border border-orange-900/10">
                         <button
                             onClick={() => setMode("login")}
-                            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === "login" ? "bg-zinc-800 text-white shadow-lg shadow-black/20" : "text-white/50 hover:text-white/70"}`}
+                            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === "login" ? "bg-orange-50 text-neutral-900 shadow-lg shadow-black/20" : "text-neutral-900/50 hover:text-neutral-900/70"}`}
                         >
                             Sign In
                         </button>
                         <button
                             onClick={() => setMode("signup")}
-                            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === "signup" ? "bg-zinc-800 text-white shadow-lg shadow-black/20" : "text-white/50 hover:text-white/70"}`}
+                            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === "signup" ? "bg-orange-50 text-neutral-900 shadow-lg shadow-black/20" : "text-neutral-900/50 hover:text-neutral-900/70"}`}
                         >
                             Create Account
                         </button>
@@ -165,7 +165,7 @@ export function FestoryLoginForm() {
                                 >
                                     {/* Name Input */}
                                     <div>
-                                        <label className="block text-sm font-medium text-white/70 mb-1.5 ml-1">
+                                        <label className="block text-sm font-medium text-neutral-900/70 mb-1.5 ml-1">
                                             Full Name
                                         </label>
                                         <Input
@@ -175,13 +175,13 @@ export function FestoryLoginForm() {
                                             value={name}
                                             onChange={(e) => setName(e.target.value)}
                                             placeholder="Enter your full name"
-                                            className="h-12 bg-white/5 border-white/10 text-base md:text-sm text-white placeholder:text-white/20 focus:bg-white/10 transition-all rounded-2xl"
+                                            className="h-12 bg-orange-50 border-orange-900/10 text-base md:text-sm text-neutral-900 placeholder:text-neutral-900/20 focus:bg-orange-50 transition-all rounded-2xl"
                                         />
                                     </div>
 
                                     {/* Team Input */}
                                     <div>
-                                        <label className="block text-sm font-medium text-white/70 mb-1.5 ml-1">
+                                        <label className="block text-sm font-medium text-neutral-900/70 mb-1.5 ml-1">
                                             Team Name
                                         </label>
                                         <Input
@@ -191,17 +191,17 @@ export function FestoryLoginForm() {
                                             value={teamName}
                                             onChange={(e) => setTeamName(e.target.value)}
                                             placeholder="Enter team name"
-                                            className="h-12 bg-white/5 border-white/10 text-base md:text-sm text-white placeholder:text-white/20 focus:bg-white/10 transition-all rounded-2xl"
+                                            className="h-12 bg-orange-50 border-orange-900/10 text-base md:text-sm text-neutral-900 placeholder:text-neutral-900/20 focus:bg-orange-50 transition-all rounded-2xl"
                                         />
                                     </div>
 
                                     {/* Phone Input */}
                                     <div>
-                                        <label className="block text-sm font-medium text-white/70 mb-1.5 ml-1">
+                                        <label className="block text-sm font-medium text-neutral-900/70 mb-1.5 ml-1">
                                             Phone Number
                                         </label>
                                         <div className="relative">
-                                            <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                                            <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-900/30" />
                                             <Input
                                                 name="phone"
                                                 type="tel"
@@ -212,7 +212,7 @@ export function FestoryLoginForm() {
                                                     setError("");
                                                 }}
                                                 placeholder="Enter phone number"
-                                                className="pl-10 h-12 bg-white/5 border-white/10 text-base md:text-sm text-white placeholder:text-white/20 focus:bg-white/10 transition-all rounded-2xl"
+                                                className="pl-10 h-12 bg-orange-50 border-orange-900/10 text-base md:text-sm text-neutral-900 placeholder:text-neutral-900/20 focus:bg-orange-50 transition-all rounded-2xl"
                                             />
                                         </div>
                                     </div>
@@ -227,7 +227,7 @@ export function FestoryLoginForm() {
                         )}
 
                         <div className="pt-2 min-h-[50px]">
-                            <div className="text-center text-xs text-white/40 mb-3 font-medium">
+                            <div className="text-center text-xs text-neutral-900/40 mb-3 font-medium">
                                 {mode === "login" ? "Continue securely with" : "Register instantly with"}
                             </div>
                             <div id="googleBtn" className="w-full"></div>

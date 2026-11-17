@@ -7,6 +7,7 @@ import { StudentLeaderboard } from "@/components/student-leaderboard";
 import { useResultUpdates } from "@/hooks/use-realtime";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { FestPageHero } from "@/components/FestPageHero";
 import type { Program, ResultRecord, Student, Team } from "@/lib/types";
 
 interface ResultsRealtimeProps {
@@ -38,9 +39,19 @@ export function ResultsRealtime({
   });
 
   return (
-    <div className="min-h-screen bg-[#fffcf5]">
+    <div className="min-h-screen bg-white">
+      <FestPageHero
+        eyebrow="Live results"
+        title="Results"
+        subtitle="Winners, grades and points as soon as every result is approved."
+        stats={[
+          { value: initialResults.length, label: "Results" },
+          { value: initialPrograms.length, label: "Programs" },
+          { value: students.length, label: "Participants" },
+        ]}
+      />
       {/* Tab Navigation */}
-      <div className="relative pt-4 pb-2">
+      <div className="relative pb-2">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-start md:justify-center gap-2 md:gap-4 py-4 overflow-x-auto no-scrollbar w-full whitespace-nowrap">
             {tabs.map((tab) => (
@@ -50,8 +61,8 @@ export function ResultsRealtime({
                 className={`
                   relative px-4 py-2 md:px-6 md:py-3 rounded-full md:rounded-2xl font-semibold transition-all duration-300 flex-shrink-0 text-sm md:text-base selection:bg-transparent
                   ${activeTab === tab.id
-                    ? "text-[#8B4513] bg-[#8B4513]/10"
-                    : "text-gray-500 hover:text-[#8B4513] hover:bg-[#8B4513]/5"
+                    ? "bg-[linear-gradient(135deg,#EC8230,#DB3C3F)] text-white shadow-[0_3px_0_#A9362B]"
+                    : "text-gray-500 hover:text-[#C72F36] hover:bg-[#C72F36]/5"
                   }
                 `}
               >
@@ -59,7 +70,7 @@ export function ResultsRealtime({
                 {activeTab === tab.id && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute inset-0 rounded-full md:rounded-2xl border-2 border-[#8B4513]/20"
+                    className="absolute inset-0 rounded-full md:rounded-2xl border-2 border-transparent"
                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                   />
                 )}
@@ -87,7 +98,7 @@ export function ResultsRealtime({
               animate={{ opacity: 1, y: 0 }}
               className="mb-8 text-center"
             >
-              <h2 className="text-3xl font-bold text-[#8B4513] mb-2">Section Results</h2>
+              <h2 className="text-3xl font-bold text-[#C72F36] mb-2">Section Results</h2>
               <p className="text-gray-600">Filter results by section and category</p>
             </motion.div>
             <SectionResults
@@ -107,7 +118,7 @@ export function ResultsRealtime({
               animate={{ opacity: 1, y: 0 }}
               className="mb-12 text-center"
             >
-              <h2 className="text-3xl font-bold text-[#8B4513] mb-2">Student Leaderboard</h2>
+              <h2 className="text-3xl font-bold text-[#C72F36] mb-2">Student Leaderboard</h2>
               <p className="text-gray-600">Top performers across all events</p>
             </motion.div>
             <StudentLeaderboard

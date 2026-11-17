@@ -79,7 +79,8 @@ export function VerticalNavSidebar() {
     );
   };
 
-  const isHome = pathname === "/";
+  // These pages carry the nav in their own hero header
+  const isHome = ["/", "/scoreboard", "/results", "/participant"].includes(pathname ?? "");
 
   return (
     <>

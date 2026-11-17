@@ -18,12 +18,15 @@ export function PublicPageWrapper({ children }: PublicPageWrapperProps) {
     !pathname.startsWith("/team") &&
     !pathname.startsWith("/festory");
 
+  // Pages whose hero header already has the navigation and the bell
+  const hasOwnHeader = ["/", "/scoreboard", "/results", "/participant"].includes(pathname);
+
   if (isPublicPage) {
     return (
       <div className="min-h-screen bg-[#FAF9F6] relative">
         <VerticalNavSidebar />
         {/* The home hero has its own large notification badge */}
-        {pathname !== "/" && (
+        {!hasOwnHeader && (
           <div className="fixed top-5 md:top-7 right-4 md:right-6 z-50 flex items-center">
             <NotificationProvider />
           </div>

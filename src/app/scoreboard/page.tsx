@@ -1,5 +1,6 @@
 import { getApprovedResults, getLiveScores, getPrograms, getStudents, getTeams } from "@/lib/data";
 import { ScoreboardRealtime } from "@/components/scoreboard-realtime";
+import { FestPageHero } from "@/components/FestPageHero";
 
 async function getScoreboardData() {
   const [teams, programs, results, students, liveScores] = await Promise.all([
@@ -31,7 +32,17 @@ export default async function ScoreboardPage() {
   const data = await getScoreboardData();
 
   return (
-    <main className="min-h-screen bg-[#fffcf5]">
+    <main className="min-h-screen bg-white">
+      <FestPageHero
+        eyebrow="Live standings"
+        title="Scoreboard"
+        subtitle="Real-time team standings and the full point breakdown for every program."
+        stats={[
+          { value: data.teams.length, label: "Teams" },
+          { value: data.results.length, label: "Results" },
+          { value: data.programs.length, label: "Programs" },
+        ]}
+      />
       <ScoreboardRealtime
         teams={data.teams}
         programs={data.programs}

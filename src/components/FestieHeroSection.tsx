@@ -45,11 +45,15 @@ export function FestieHeroSection({ stats = [] }: { stats?: FestStat[] }) {
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_10%,rgba(255,255,255,0.12),transparent_55%)]" />
           </div>
 
+          {/* Wavy white bottom edge */}
+          <div aria-hidden className="pointer-events-none absolute -inset-x-[2px] -bottom-[2px] z-10">
+            <svg viewBox="0 0 1440 121" preserveAspectRatio="none" className="block h-[64px] w-full sm:h-[92px] lg:h-[120px]">
+              <path fill="#fff" d="M0,62 C100,58 180,50 265,50 C420,50 480,80 635,80 C800,80 880,30 1040,30 C1180,30 1330,38 1440,46 L1440,121 L0,121 Z" />
+            </svg>
+          </div>
+
           {/* ══════════ Top navigation (centred, white) ══════════ */}
           <nav aria-label="Main" className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-5 pt-5 sm:px-8 sm:pt-7 lg:justify-center lg:pt-[clamp(2.6rem,5vw,3.9rem)]">
-            <Link href="/" aria-label="Funoon Fiesta home" className="relative block h-11 w-11 shrink-0 rounded-full bg-white p-1.5 shadow-md sm:h-12 sm:w-12 lg:hidden">
-              <Image src="/img/brand-logo-transparent.png" alt="Funoon Fiesta" fill priority sizes="48px" className="object-contain p-1.5" />
-            </Link>
             <ul className="hidden items-center gap-[clamp(1.6rem,3.4vw,3rem)] lg:flex">
               {NAV_LINKS.map((link) => {
                 const active = pathname === link.href;
@@ -77,13 +81,13 @@ export function FestieHeroSection({ stats = [] }: { stats?: FestStat[] }) {
           </div>
 
           {/* ══════════ Content ══════════ */}
-          <div className="relative z-20 flex flex-col px-6 pb-8 pt-28 sm:px-12 sm:pt-32 md:pb-[300px] lg:max-w-[72%] lg:px-0 lg:pb-28 lg:pl-[clamp(3rem,7.4vw,8rem)] lg:pt-[clamp(8.5rem,16vh,12.5rem)]">
+          <div className="relative z-20 flex flex-col px-6 pb-8 pt-7 sm:px-12 sm:pt-32 md:pb-[300px] lg:max-w-[72%] lg:px-0 lg:pb-28 lg:pl-[clamp(3rem,7.4vw,8rem)] lg:pt-[clamp(8.5rem,16vh,12.5rem)]">
             {/* Partner branding strip */}
-            <div className="flex items-center">
+            <div className="flex items-center pr-12 sm:pr-0">
               <Image
-                src="/img/hero/hero-partners.png"
+                src="/img/hero/hero-partners-4.png"
                 alt="Funoon Fiesta & Partner Logos"
-                width={1024}
+                width={755}
                 height={117}
                 priority
                 className="h-9 w-auto max-w-full object-contain sm:h-11 md:h-12 lg:h-[52px]"
@@ -112,7 +116,7 @@ export function FestieHeroSection({ stats = [] }: { stats?: FestStat[] }) {
             <div className="mt-8 flex items-center justify-between gap-3 md:block">
               <div className="flex flex-col items-start gap-y-4 md:flex-row md:flex-wrap md:items-center md:gap-x-12">
                 <HeroCta href="/scoreboard" label="Explore Now" />
-                <HeroCta href="/festory" label="Festory" />
+                <HeroCta href="/festory" label="Festory" pill />
               </div>
               {/* Small screens: hourglass sits to the right of the buttons so the hero fits one screen */}
               <AnimatedHourglass className="pointer-events-none h-auto w-[34%] max-w-[150px] shrink-0 animate-[hero-float_6s_ease-in-out_infinite] drop-shadow-[0_14px_18px_rgba(90,30,10,0.25)] md:hidden" />
@@ -161,7 +165,18 @@ export function FestieHeroSection({ stats = [] }: { stats?: FestStat[] }) {
   );
 }
 
-function HeroCta({ href, label }: { href: string; label: string }) {
+function HeroCta({ href, label, pill = false }: { href: string; label: string; pill?: boolean }) {
+  if (pill) {
+    return (
+      <Link
+        href={href}
+        className="group inline-flex h-12 items-center gap-3 whitespace-nowrap rounded-full bg-[#FBFF00] px-6 font-hero-sans text-[20px] font-semibold text-[#C72F36] shadow-[0_4px_0_#A9462A] transition hover:-translate-y-0.5 hover:shadow-[0_6px_0_#A9462A] active:translate-y-0.5 active:shadow-[0_1px_0_#A9462A] sm:h-14 sm:gap-4 sm:px-8 sm:text-[26px]"
+      >
+        {label}
+        <ArrowUpRight size={24} strokeWidth={2.6} />
+      </Link>
+    );
+  }
   return (
     <Link href={href} className="group inline-flex items-center gap-3 whitespace-nowrap font-hero-sans text-[20px] font-medium text-white sm:gap-4 sm:text-[28px]">
       {label}

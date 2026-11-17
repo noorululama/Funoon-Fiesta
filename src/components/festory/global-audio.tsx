@@ -203,14 +203,14 @@ export function GlobalAudio() {
             <Button
                 size="icon"
                 variant="ghost"
-                className="w-12 h-12 rounded-full bg-fuchsia-600 hover:bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-600/40"
+                className="w-12 h-12 rounded-full bg-[linear-gradient(135deg,#EC8230,#DB3C3F)] text-white shadow-[0_2px_0_#A9362B] shadow-lg shadow-fuchsia-600/40"
                 onClick={() => setShowControls(!showControls)}
             >
                 {showControls ? <X className="w-6 h-6" /> : <Zap className="w-6 h-6" />}
             </Button>
 
             {showControls && (
-                <div className="bg-black/60 backdrop-blur-md p-2 rounded-2xl border border-white/10 flex flex-col gap-2 animate-in slide-in-from-bottom-10 fade-in">
+                <div className="bg-white/60 backdrop-blur-md p-2 rounded-2xl border border-orange-900/10 flex flex-col gap-2 animate-in slide-in-from-bottom-10 fade-in">
                     {AUDIO_BOMBS.map(bomb => (
                         <button
                             key={bomb.id}
@@ -225,7 +225,7 @@ export function GlobalAudio() {
             )}
 
             {isPlaying && (
-                <div className="bg-fuchsia-600/90 text-white px-4 py-2 rounded-full shadow-lg animate-bounce flex items-center gap-2">
+                <div className="bg-[#E4602F]/90 text-neutral-900 px-4 py-2 rounded-full shadow-lg animate-bounce flex items-center gap-2">
                     <Volume2 className="w-4 h-4" />
                     <span className="text-sm font-bold">{isPlaying}</span>
                 </div>

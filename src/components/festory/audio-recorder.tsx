@@ -101,19 +101,19 @@ export function AudioRecorder({ onRecordingComplete, onClear, disabled }: AudioR
                     disabled={disabled}
                     className={`h-10 w-10 rounded-full transition-all ${isRecording
                             ? "bg-red-500/20 text-red-500 animate-pulse border border-red-500/50"
-                            : "text-white/50 hover:text-white hover:bg-white/10"
+                            : "text-neutral-900/50 hover:text-neutral-900 hover:bg-orange-50"
                         }`}
                 >
                     {isRecording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
                 </Button>
             ) : (
-                <div className="flex items-center gap-2 bg-fuchsia-900/40 border border-fuchsia-500/30 rounded-full pl-2 pr-1 py-1">
+                <div className="flex items-center gap-2 bg-fuchsia-900/40 border border-[#E4602F]/30 rounded-full pl-2 pr-1 py-1">
                     <Button
                         type="button"
                         variant="ghost"
                         size="icon"
                         onClick={togglePlay}
-                        className="h-8 w-8 text-fuchsia-200 hover:text-white"
+                        className="h-8 w-8 text-fuchsia-200 hover:text-neutral-900"
                     >
                         {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                     </Button>
@@ -127,7 +127,7 @@ export function AudioRecorder({ onRecordingComplete, onClear, disabled }: AudioR
                         variant="ghost"
                         size="icon"
                         onClick={clearRecording}
-                        className="h-8 w-8 text-white/50 hover:text-red-400"
+                        className="h-8 w-8 text-neutral-900/50 hover:text-red-400"
                     >
                         <Trash2 className="h-4 w-4" />
                     </Button>

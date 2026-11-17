@@ -30,18 +30,18 @@ export function ResultProgramCard({ program, result, stats, index = 0 }: ResultP
             whileTap={{ scale: 0.95 }}
         >
             <Link href={`/results/${program.id}`}>
-                <div className="group cursor-pointer p-6 rounded-2xl border border-gray-200 bg-white shadow-md hover:shadow-xl transition-all duration-300 hover:border-[#8B4513] relative overflow-hidden">
+                <div className="group cursor-pointer p-6 rounded-2xl border border-gray-200 bg-white shadow-md hover:shadow-xl transition-all duration-300 hover:border-[#C72F36] relative overflow-hidden">
                     {/* Background gradient effect */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#8B4513]/0 to-[#0d7377]/0 group-hover:from-[#8B4513]/5 group-hover:to-[#0d7377]/5 transition-all duration-300" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#C72F36]/0 to-[#0d7377]/0 group-hover:from-[#C72F36]/5 group-hover:to-[#0d7377]/5 transition-all duration-300" />
 
                     <div className="relative z-10">
                         <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-[#8B4513]/10">
-                                    <Trophy className="w-5 h-5 text-[#8B4513]" />
+                                <div className="p-2 rounded-lg bg-[#C72F36]/10">
+                                    <Trophy className="w-5 h-5 text-[#C72F36]" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-[#8B4513] transition-colors">
+                                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-[#C72F36] transition-colors">
                                         {program.name}
                                     </h3>
                                     <div className="flex items-center gap-2 mt-1">
@@ -61,9 +61,9 @@ export function ResultProgramCard({ program, result, stats, index = 0 }: ResultP
 
                         <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
                             <span className="text-sm text-gray-600">View Results</span>
-                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-[#8B4513]/10 transition-colors">
+                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-[#C72F36]/10 transition-colors">
                                 <svg
-                                    className="w-4 h-4 text-gray-600 group-hover:text-[#8B4513] transition-colors"
+                                    className="w-4 h-4 text-gray-600 group-hover:text-[#C72F36] transition-colors"
                                     fill="none"
                                     stroke="currentColor"
                                     viewBox="0 0 24 24"

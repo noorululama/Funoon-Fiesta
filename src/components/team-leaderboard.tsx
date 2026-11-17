@@ -238,7 +238,7 @@ export function TeamLeaderboard({ teams }: TeamLeaderboardProps) {
 
                                 {/* Details */}
                                 <div className="flex-grow min-w-0">
-                                    <h4 className="font-bold text-gray-900 text-sm md:text-base group-hover:text-[#8B4513] transition-colors leading-tight">
+                                    <h4 className="font-bold text-gray-900 text-sm md:text-base group-hover:text-[#C72F36] transition-colors leading-tight">
                                         {team.name}
                                     </h4>
                                     <div className="text-xs text-gray-500 mt-0.5">

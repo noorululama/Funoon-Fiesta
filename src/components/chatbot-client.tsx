@@ -887,7 +887,7 @@ export default function ChatbotClient() {
 
           {/* Mode switch */}
           {SHOW_3D_CHATBOT && (
-            <div role="tablist" aria-label="Answer style" className={cn("hidden items-center rounded-xl border p-1 sm:flex", isCharacterMode ? "border-white/30 bg-white/15 backdrop-blur-md" : "border-[#F0952A]/20 bg-[#FFF1E6]")}>
+            <div role="tablist" aria-label="Answer style" className={cn("hidden items-center rounded-full border p-1 sm:flex", isCharacterMode ? "border-white/30 bg-white/15 backdrop-blur-md" : "border-[#F0952A]/20 bg-[#FFF1E6]")}>
               <ModeButton active={activeTab === "character"} onClick={() => switchMode("character")} icon={<Radio size={15} />} label="Talk to host" dark={isCharacterMode} />
               <ModeButton active={activeTab === "chat"} onClick={() => switchMode("chat")} icon={<MessageSquare size={15} />} label="Text chat" dark={isCharacterMode} />
             </div>
@@ -917,7 +917,7 @@ export default function ChatbotClient() {
         {/* Mode switch – mobile */}
         {SHOW_3D_CHATBOT && (
           <div className="px-4 pb-3 sm:hidden">
-            <div role="tablist" aria-label="Answer style" className={cn("flex items-center rounded-xl border p-1", isCharacterMode ? "border-white/30 bg-white/15 backdrop-blur-md" : "border-[#F0952A]/20 bg-[#FFF1E6]")}>
+            <div role="tablist" aria-label="Answer style" className={cn("flex items-center rounded-full border p-1", isCharacterMode ? "border-white/30 bg-white/15 backdrop-blur-md" : "border-[#F0952A]/20 bg-[#FFF1E6]")}>
               <ModeButton active={activeTab === "character"} onClick={() => switchMode("character")} icon={<Radio size={15} />} label="Talk to host" stretch dark={isCharacterMode} />
               <ModeButton active={activeTab === "chat"} onClick={() => switchMode("chat")} icon={<MessageSquare size={15} />} label="Text chat" stretch dark={isCharacterMode} />
             </div>
@@ -1026,8 +1026,8 @@ export default function ChatbotClient() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 8 }}
                 className={cn(
-                  "absolute inset-x-3 z-20 flex items-start gap-2 rounded-2xl border-2 border-white bg-white/95 p-2.5 pl-3.5 text-[#1E1B18] shadow-[0_5px_0_rgba(150,40,30,0.3)] sm:inset-x-4 lg:left-[42%] lg:right-10",
-                  activeTab === "character" ? "bottom-[calc(8.5rem+env(safe-area-inset-bottom))] lg:bottom-9" : "bottom-3 sm:bottom-4",
+                  "absolute inset-x-3 z-20 flex items-start gap-2 rounded-2xl border-2 border-white bg-white/95 p-2.5 pl-3.5 text-[#1E1B18] shadow-[0_5px_0_rgba(150,40,30,0.3)] sm:inset-x-4 lg:left-[46%] lg:right-10",
+                  activeTab === "character" ? "bottom-[calc(12rem+env(safe-area-inset-bottom))] lg:bottom-9" : "bottom-3 sm:bottom-4",
                 )}
               >
                 <p aria-live="polite" className="line-clamp-2 flex-1 text-[13px] font-medium leading-relaxed sm:line-clamp-3 sm:text-sm">
@@ -1060,7 +1060,7 @@ export default function ChatbotClient() {
 
           {activeTab === "character" && (
             <div className="absolute inset-x-0 bottom-[calc(6.5rem+env(safe-area-inset-bottom))] z-30 flex justify-center px-4 lg:inset-x-auto lg:bottom-9 lg:left-[clamp(3rem,6vw,7rem)] lg:justify-start lg:px-0">
-              <div className="flex max-w-[min(92vw,34rem)] items-center gap-3 rounded-full border-2 border-white bg-white py-2.5 pl-2.5 pr-5 text-[#1E1B18] shadow-[0_5px_0_#A9362B,0_18px_30px_-12px_rgba(120,25,25,0.6)] sm:gap-4 sm:py-3 sm:pl-3 sm:pr-6">
+              <div className="flex max-w-[min(88vw,26rem)] items-center gap-2.5 rounded-full border border-white/45 bg-white/15 py-1.5 pl-1.5 pr-4 text-white shadow-[0_10px_24px_-14px_rgba(120,25,25,0.55)] backdrop-blur-md sm:gap-3 sm:pr-5">
                 <button
                   type="button"
                   onClick={toggleListening}
@@ -1068,22 +1068,22 @@ export default function ChatbotClient() {
                   aria-label={isListening ? "Stop listening and send" : isLoading ? "The host is preparing an answer" : "Start speaking"}
                   aria-pressed={isListening}
                   className={cn(
-                    "relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full transition active:translate-y-0.5 disabled:cursor-wait disabled:opacity-55 sm:h-16 sm:w-16",
+                    "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition active:translate-y-0.5 disabled:cursor-wait disabled:opacity-55 sm:h-12 sm:w-12",
                     isListening ? "bg-[#DB3C3F] text-white shadow-[0_4px_0_#8F1F24]" : "bg-[#FBFF00] text-[#141414] shadow-[0_4px_0_#A9462A] hover:brightness-95",
                   )}
                 >
                   {isListening && <span className="absolute inset-0 animate-ping rounded-full bg-[#DB3C3F]/40" />}
-                  <Mic size={24} className="relative" />
+                  <Mic size={20} className="relative" />
                 </button>
                 <div className="min-w-0" aria-live="polite">
-                  <p className="text-sm font-bold sm:text-base">
+                  <p className="text-[13px] font-bold sm:text-sm">
                     {isListening ? "Listening… speak now" : isLoading ? "Preparing your answer…" : "Tap the microphone to speak"}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-[#7A716A] sm:text-xs">
+                  <p className="mt-0.5 text-[10.5px] text-white/85 sm:text-[11px]">
                     {isListening ? "Pause or tap the microphone to send" : "Ask in Malayalam; the host replies aloud"}
                   </p>
                   {isListening && input.trim() && (
-                    <p className="mt-1 max-w-[60vw] truncate text-xs text-[#5B514A]">{input}</p>
+                    <p className="mt-1 max-w-[60vw] truncate text-xs text-white/90">{input}</p>
                   )}
                 </div>
               </div>
@@ -1340,7 +1340,7 @@ function ModeButton({
       aria-selected={active}
       onClick={onClick}
       className={cn(
-        "flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-bold transition",
+        "flex items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-bold transition",
         stretch && "flex-1",
         active
           ? "bg-white text-[#C72F36] shadow-[0_2px_0_rgba(150,40,30,0.3)]"

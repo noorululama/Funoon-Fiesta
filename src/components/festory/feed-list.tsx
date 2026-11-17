@@ -28,9 +28,9 @@ export function FeedList({ initialPosts, currentUserId, initialScrollToPostId }:
                     element.scrollIntoView({ behavior: "smooth", block: "center" });
 
                     // Add a highlight class temporarily
-                    element.classList.add("ring-2", "ring-fuchsia-500", "ring-offset-2", "ring-offset-black");
+                    element.classList.add("ring-2", "ring-[#E4602F]", "ring-offset-2", "ring-offset-white");
                     setTimeout(() => {
-                        element.classList.remove("ring-2", "ring-fuchsia-500", "ring-offset-2", "ring-offset-black");
+                        element.classList.remove("ring-2", "ring-[#E4602F]", "ring-offset-2", "ring-offset-white");
                     }, 2500);
 
                     hasScrolledRef.current = true;

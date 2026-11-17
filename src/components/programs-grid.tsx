@@ -118,14 +118,14 @@ export function ProgramsGrid({ programs, results, programMap, students, teams }:
   ] as const;
 
   return (
-    <div className="relative overflow-x-hidden min-h-screen bg-[#fffcf5]">
-      <div className="container mx-auto px-4 py-16">
+    <div className="relative overflow-x-hidden min-h-screen bg-white">
+      <div className="container mx-auto px-4 py-10">
         <div className="max-w-6xl mx-auto">
           <motion.h1
             variants={fadeIn("left", 0.3)}
             initial="hidden"
             animate="show"
-            className="font-bold text-center text-4xl md:text-5xl mb-4 text-[#8B4513]"
+            className="font-hero-stat font-extrabold uppercase text-center text-3xl md:text-4xl mb-3 tracking-tight text-[#C72F36]"
           >
             Explore Programs Results
           </motion.h1>
@@ -153,8 +153,8 @@ export function ProgramsGrid({ programs, results, programMap, students, teams }:
                   className={`
                     relative px-4 py-2 md:px-6 md:py-3 rounded-full md:rounded-2xl font-semibold transition-all duration-300 flex-shrink-0 text-sm md:text-base selection:bg-transparent
                     ${filter === f.id
-                      ? "text-[#8B4513] bg-[#8B4513]/10"
-                      : "bg-white text-gray-500 border border-gray-200 hover:text-[#8B4513] hover:bg-[#8B4513]/5"
+                      ? "bg-[linear-gradient(135deg,#EC8230,#DB3C3F)] text-white shadow-[0_3px_0_#A9362B]"
+                      : "bg-white text-gray-500 border border-gray-200 hover:text-[#C72F36] hover:bg-[#C72F36]/5"
                     }
                   `}
                 >
@@ -162,7 +162,7 @@ export function ProgramsGrid({ programs, results, programMap, students, teams }:
                   {filter === f.id && (
                     <motion.div
                       layoutId="activeProgramFilter"
-                      className="absolute inset-0 rounded-full md:rounded-2xl border-2 border-[#8B4513]/20"
+                      className="absolute inset-0 rounded-full md:rounded-2xl border-2 border-transparent"
                       transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                     />
                   )}
@@ -175,7 +175,7 @@ export function ProgramsGrid({ programs, results, programMap, students, teams }:
               <input
                 type="text"
                 placeholder="Search Programs..."
-                className="w-full bg-white border-2 border-gray-300 text-gray-900 h-14 pl-12 pr-6 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#8B4513] focus:border-[#8B4513] transition duration-300 ease-in-out placeholder:text-gray-400 shadow-md"
+                className="w-full bg-white border-2 border-gray-300 text-gray-900 h-14 pl-12 pr-6 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C72F36] focus:border-[#C72F36] transition duration-300 ease-in-out placeholder:text-gray-400 shadow-md"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -224,7 +224,7 @@ export function ProgramsGrid({ programs, results, programMap, students, teams }:
                 {search && (
                   <button
                     onClick={() => setSearch("")}
-                    className="mt-4 px-6 py-2 rounded-xl bg-[#8B4513]/10 text-[#8B4513] hover:bg-[#8B4513]/20 transition-colors"
+                    className="mt-4 px-6 py-2 rounded-xl bg-[#C72F36]/10 text-[#C72F36] hover:bg-[#C72F36]/20 transition-colors"
                   >
                     Clear Search
                   </button>

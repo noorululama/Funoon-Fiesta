@@ -52,7 +52,7 @@ function TeamCard({ team, totalPoints, medals, penaltyPoints, isActive, onClick,
             <h3 className="font-bold text-gray-900 text-lg leading-tight">{team.name}</h3>
           </div>
           <div className="text-right">
-            <span className="block text-2xl font-bold text-emerald-600 leading-none">{totalPoints}</span>
+            <span className="block text-2xl font-bold text-[#E4602F] leading-none">{totalPoints}</span>
             <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Points</span>
           </div>
         </div>
@@ -303,7 +303,7 @@ export function ScoreboardTable({
                 className="w-full flex justify-between items-center p-4 bg-white hover:bg-gray-50/50 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-1 h-6 bg-[#8B4513] rounded-full"></div>
+                  <div className="w-1 h-6 bg-[#C72F36] rounded-full"></div>
                   <span className="font-bold text-gray-800">{title}</span>
                   <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{sectionPrograms.length}</span>
                 </div>
@@ -363,11 +363,11 @@ export function ScoreboardTable({
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-[#8B4513] text-white">
+            <thead className="bg-[#C72F36] text-white">
               <tr>
-                <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap sticky top-0 bg-[#8B4513] z-10 w-1/4">Program</th>
+                <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider whitespace-nowrap sticky top-0 bg-[#C72F36] z-10 w-1/4">Program</th>
                 {teamNames.map((team) => (
-                  <th key={team} className="px-4 py-4 text-center font-bold text-xs uppercase tracking-wider sticky top-0 bg-[#8B4513] z-10">
+                  <th key={team} className="px-4 py-4 text-center font-bold text-xs uppercase tracking-wider sticky top-0 bg-[#C72F36] z-10">
                     {team}
                   </th>
                 ))}
@@ -386,7 +386,7 @@ export function ScoreboardTable({
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="p-1.5 rounded bg-orange-50 text-[#8B4513]">
+                        <div className="p-1.5 rounded bg-orange-50 text-[#C72F36]">
                           <Trophy className="w-3.5 h-3.5" />
                         </div>
                         <span className="font-semibold text-gray-900">{program.name}</span>
@@ -433,10 +433,10 @@ export function ScoreboardTable({
               })}
 
               {/* Total Row */}
-              <tr className="bg-[#8B4513]/5 border-t-2 border-[#8B4513]/10 font-bold text-base">
-                <td className="px-6 py-5 text-[#8B4513] uppercase tracking-wider">Total Score</td>
+              <tr className="bg-[#C72F36]/5 border-t-2 border-[#C72F36]/10 font-bold text-base">
+                <td className="px-6 py-5 text-[#C72F36] uppercase tracking-wider">Total Score</td>
                 {teams.map((team) => (
-                  <td key={team.id} className="px-4 py-5 text-center text-[#8B4513]">
+                  <td key={team.id} className="px-4 py-5 text-center text-[#C72F36]">
                     {getTotalPointsForTeam(team.id)}
                   </td>
                 ))}
@@ -476,16 +476,7 @@ export function ScoreboardTable({
   const hasData = results.length > 0;
 
   return (
-    <div className="container mx-auto px-4 py-8 md:py-12 md:px-8 max-w-7xl">
-      <div className="mb-10 text-center space-y-2">
-        <h1 className="text-2xl md:text-4xl font-black text-gray-900 tracking-tight">
-          LIVE <span className="text-[#8B4513]">SCOREBOARD</span>
-        </h1>
-        <p className="text-gray-500 text-sm md:text-base max-w-lg mx-auto">
-          Real-time standings and detailed point breakdown for all houses.
-        </p>
-      </div>
-
+    <div className="container mx-auto px-4 py-8 md:py-10 md:px-8 max-w-7xl">
       {!hasData ? (
         <NoDataMessage />
       ) : (

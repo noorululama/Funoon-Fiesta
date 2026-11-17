@@ -118,10 +118,10 @@ const AudioPlayer = ({ src }: { src: string }) => {
     const progressPercent = (duration && duration > 0) ? (currentTime / duration) * 100 : 0;
 
     return (
-        <div className="w-full bg-zinc-800/80 rounded-2xl p-3 mb-4 border border-white/5 flex items-center gap-4 select-none group">
+        <div className="w-full bg-orange-50 rounded-2xl p-3 mb-4 border border-orange-900/10 flex items-center gap-4 select-none group">
             <button
                 onClick={togglePlay}
-                className="w-10 h-10 flex items-center justify-center rounded-full bg-white text-black shrink-0 hover:bg-zinc-200 transition-colors shadow-lg active:scale-95"
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-[#C72F36] text-white shrink-0 hover:brightness-110 transition-colors shadow-lg active:scale-95"
             >
                 {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
             </button>
@@ -136,13 +136,13 @@ const AudioPlayer = ({ src }: { src: string }) => {
                     onPointerCancel={handlePointerCancel}
                     onPointerLeave={handlePointerCancel}
                 >
-                    <div className="absolute left-0 right-0 h-1 bg-white/20 rounded-full" />
+                    <div className="absolute left-0 right-0 h-1 bg-orange-200 rounded-full" />
                     <div
-                        className="absolute left-0 h-1 bg-fuchsia-500 rounded-full"
+                        className="absolute left-0 h-1 bg-[#E4602F] rounded-full"
                         style={{ width: `${progressPercent}%` }}
                     />
                     <div
-                        className={`absolute h-3.5 w-3.5 bg-fuchsia-500 rounded-full shadow-md border-2 border-zinc-900 transition-transform ${isDragging ? 'scale-125' : 'scale-100'}`}
+                        className={`absolute h-3.5 w-3.5 bg-[#E4602F] rounded-full shadow-md border-2 border-white transition-transform ${isDragging ? 'scale-125' : 'scale-100'}`}
                         style={{
                             left: `${progressPercent}%`,
                             transform: `translateX(-50%) scale(${isDragging ? 1.2 : 1})`
@@ -150,12 +150,12 @@ const AudioPlayer = ({ src }: { src: string }) => {
                     />
                 </div>
 
-                <div className="flex justify-between text-[11px] text-white/50 font-medium px-0.5">
+                <div className="flex justify-between text-[11px] text-neutral-900/50 font-medium px-0.5">
                     <span>{formatTime(currentTime)}</span>
                     <div className="flex items-center gap-3">
                         <span>{duration ? formatTime(duration) : "--:--"}</span>
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Mic className="w-3 h-3 text-white/30" />
+                            <Mic className="w-3 h-3 text-neutral-900/30" />
                         </div>
                     </div>
                 </div>
@@ -277,14 +277,14 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
 
         return (
             <div className={`flex gap-3 ${isReply ? "mt-2" : ""}`}>
-                <Avatar className="w-8 h-8 border border-white/10 shrink-0 mt-1">
+                <Avatar className="w-8 h-8 border border-orange-900/10 shrink-0 mt-1">
                     <AvatarImage src={comment.userImage} />
                     <AvatarFallback>{comment.userName.slice(0, 2)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                    <div className="text-sm text-white leading-tight">
-                        <span className="font-bold mr-2 text-white">{comment.userName}</span>
-                        <span className="font-light text-white/90">
+                    <div className="text-sm text-neutral-900 leading-tight">
+                        <span className="font-bold mr-2 text-neutral-900">{comment.userName}</span>
+                        <span className="font-light text-neutral-900/90">
                             {contentParts.map((part, i) => (
                                 part.startsWith('@') ? <span key={i} className="text-blue-400">{part}</span> : part
                             ))}
@@ -292,7 +292,7 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
                     </div>
 
                     <div className="flex items-center gap-4 mt-1.5">
-                        <span className="text-[10px] text-white/40 font-medium">
+                        <span className="text-[10px] text-neutral-900/40 font-medium">
                             {new Date(comment.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                         </span>
                         <button
@@ -300,7 +300,7 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
                                 setReplyingTo({ id: comment.id, userName: comment.userName });
                                 inputRef.current?.focus();
                             }}
-                            className="text-[10px] font-bold text-white/40 hover:text-white/60"
+                            className="text-[10px] font-bold text-neutral-900/40 hover:text-[#C72F36]"
                         >
                             Reply
                         </button>
@@ -348,22 +348,22 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
-            className="bg-zinc-900 border border-white/5 rounded-3xl p-5 shadow-2xl relative"
+            className="bg-white border border-orange-900/10 rounded-3xl p-5 shadow-2xl relative"
         >
             {/* Header */}
             <div className="flex justify-between items-start mb-4">
                 <div className="flex gap-3">
-                    <Avatar className="h-10 w-10 border border-white/10">
+                    <Avatar className="h-10 w-10 border border-orange-900/10">
                         <AvatarImage src={post.userImage} alt={post.userName} className="object-cover" />
-                        <AvatarFallback className="bg-gradient-to-br from-fuchsia-600 to-purple-600 text-white text-xs font-bold">
+                        <AvatarFallback className="bg-[linear-gradient(135deg,#EC8230,#DB3C3F)] text-white text-xs font-bold">
                             {post.userName.slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
                     <div>
-                        <h3 className="text-sm font-bold text-white leading-tight">
+                        <h3 className="text-sm font-bold text-neutral-900 leading-tight">
                             {post.userName}
                         </h3>
-                        <p suppressHydrationWarning className="text-[10px] text-white/40 font-medium">
+                        <p suppressHydrationWarning className="text-[10px] text-neutral-900/40 font-medium">
                             {new Date(post.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Team {post.userTeamId}
                         </p>
                     </div>
@@ -373,7 +373,7 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
                 <div className="relative">
                     <button
                         onClick={() => setMenuOpen(!menuOpen)}
-                        className="text-white/20 hover:text-white transition-colors p-1 rounded-full hover:bg-white/5"
+                        className="text-neutral-900/20 hover:text-neutral-900 transition-colors p-1 rounded-full hover:bg-orange-50"
                     >
                         <MoreVertical className="w-5 h-5" />
                     </button>
@@ -384,7 +384,7 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.9, y: -10 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                                className="absolute right-0 top-8 w-32 bg-zinc-800 border border-white/10 rounded-2xl shadow-xl z-20 overflow-hidden py-1"
+                                className="absolute right-0 top-8 w-32 bg-orange-50 border border-orange-900/10 rounded-2xl shadow-xl z-20 overflow-hidden py-1"
                             >
                                 {isOwner ? (
                                     <>
@@ -395,7 +395,7 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
                                                     setIsEditing(true);
                                                     setEditContent(post.content);
                                                 }}
-                                                className="w-full text-left px-3 py-2 text-sm text-white/80 hover:bg-white/5 flex items-center gap-2"
+                                                className="w-full text-left px-3 py-2 text-sm text-neutral-900/80 hover:bg-orange-50 flex items-center gap-2"
                                             >
                                                 <Edit2 className="w-3.5 h-3.5" />
                                                 Edit
@@ -415,7 +415,7 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
                                 ) : (
                                     <button
                                         onClick={() => setMenuOpen(false)}
-                                        className="w-full text-left px-3 py-2 text-sm text-white/50 hover:bg-white/5 flex items-center gap-2"
+                                        className="w-full text-left px-3 py-2 text-sm text-neutral-900/50 hover:bg-orange-50 flex items-center gap-2"
                                     >
                                         <X className="w-3.5 h-3.5" />
                                         Close
@@ -434,20 +434,20 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
                         <textarea
                             value={editContent}
                             onChange={(e) => setEditContent(e.target.value)}
-                            className="w-full bg-zinc-800 border border-white/10 rounded-xl p-3 text-sm text-white resize-none focus:outline-none focus:ring-1 focus:ring-fuchsia-500"
+                            className="w-full bg-orange-50 border border-orange-900/10 rounded-xl p-3 text-sm text-neutral-900 resize-none focus:outline-none focus:ring-1 focus:ring-[#E4602F]"
                             rows={3}
                         />
                         <div className="flex justify-end gap-2">
                             <button
                                 onClick={() => setIsEditing(false)}
-                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-white/60 hover:bg-white/5 disabled:opacity-50"
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-900/60 hover:bg-orange-50 disabled:opacity-50"
                                 disabled={isSavingEdit}
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleEditSave}
-                                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-fuchsia-600 text-white hover:bg-fuchsia-500 disabled:opacity-50 flex items-center gap-1"
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[linear-gradient(135deg,#EC8230,#DB3C3F)] text-white shadow-[0_2px_0_#A9362B] hover:bg-[#E4602F] disabled:opacity-50 flex items-center gap-1"
                                 disabled={isSavingEdit}
                             >
                                 {isSavingEdit && <Loader2 className="w-3 h-3 animate-spin" />}
@@ -456,7 +456,7 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
                         </div>
                     </div>
                 ) : (
-                    <p className="text-white text-sm leading-relaxed whitespace-pre-wrap break-words font-light">
+                    <p className="text-neutral-900 text-sm leading-relaxed whitespace-pre-wrap break-words font-light">
                         {post.content}
                     </p>
                 )}
@@ -464,7 +464,7 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
 
             {/* Media */}
             {post.type === 'image' && post.mediaUrl && (
-                <div className="relative w-full rounded-2xl overflow-hidden mb-4 border border-white/10 bg-black/50">
+                <div className="relative w-full rounded-2xl overflow-hidden mb-4 border border-orange-900/10 bg-orange-50">
                     <img src={post.mediaUrl} alt="Post content" className="w-full h-auto" loading="lazy" />
                 </div>
             )}
@@ -482,11 +482,11 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
                         return (
                             <div key={option.id} className="relative">
                                 {/* Vote Bar Background */}
-                                <div className="absolute inset-0 bg-white/5 rounded-xl overflow-hidden">
+                                <div className="absolute inset-0 bg-orange-50 rounded-xl overflow-hidden">
                                     <motion.div
                                         initial={{ width: 0 }}
                                         animate={{ width: `${percentage}%` }}
-                                        className={`h-full opacity-20 ${isVoted ? 'bg-fuchsia-500' : 'bg-white'}`}
+                                        className={`h-full opacity-20 ${isVoted ? 'bg-[#E4602F]' : 'bg-white'}`}
                                     />
                                 </div>
 
@@ -498,8 +498,8 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
                                         await voteFestoryPoll(post.id, option.id);
                                     }}
                                     className={`relative w-full text-left px-4 py-3 rounded-xl border transition-all flex justify-between items-center group ${isVoted
-                                        ? "border-fuchsia-500/50 text-fuchsia-100"
-                                        : "border-white/10 text-white hover:bg-white/5"
+                                        ? "border-[#E4602F]/50 text-fuchsia-100"
+                                        : "border-orange-900/10 text-neutral-900 hover:bg-orange-50"
                                         }`}
                                 >
                                     <span className="font-medium z-10 truncate pr-2">{option.text}</span>
@@ -512,18 +512,18 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
                             </div>
                         );
                     })}
-                    <div className="text-xs text-white/40 font-medium px-1 pt-1">
+                    <div className="text-xs text-neutral-900/40 font-medium px-1 pt-1">
                         {post.pollOptions.reduce((acc, curr) => acc + curr.votes.length, 0)} votes
                     </div>
                 </div>
             )}
 
             {/* Footer / Interactions */}
-            <div className="flex items-center justify-between pt-2 border-t border-white/5">
+            <div className="flex items-center justify-between pt-2 border-t border-orange-900/10">
                 <div className="flex gap-6">
                     <button
                         onClick={handleLike}
-                        className={`flex items-center gap-2 transition-colors group ${liked ? "text-pink-500" : "text-white/60 hover:text-pink-500"}`}
+                        className={`flex items-center gap-2 transition-colors group ${liked ? "text-[#DB3C3F]" : "text-neutral-900/60 hover:text-[#DB3C3F]"}`}
                     >
                         <Heart className={`w-5 h-5 group-hover:scale-110 transition-transform ${liked ? "fill-current" : ""}`} />
                         <span className="text-xs font-medium">{likeCount}</span>
@@ -531,24 +531,24 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
 
                     <Sheet open={commentsOpen} onOpenChange={handleOpenComments}>
                         <SheetTrigger asChild>
-                            <button className="flex items-center gap-2 text-white/60 hover:text-blue-400 transition-colors">
+                            <button className="flex items-center gap-2 text-neutral-900/60 hover:text-blue-400 transition-colors">
                                 <MessageCircle className="w-5 h-5" />
                                 <span className="text-xs font-medium">{commentCount}</span>
                             </button>
                         </SheetTrigger>
-                        <SheetContent side="bottom" className="h-[80vh] bg-zinc-900 border-t border-white/10 p-0 rounded-t-3xl flex flex-col">
-                            <SheetHeader className="p-4 border-b border-white/10 shrink-0">
-                                <SheetTitle className="text-white text-center">Comments</SheetTitle>
+                        <SheetContent side="bottom" className="h-[80vh] bg-white border-t border-orange-900/10 p-0 rounded-t-3xl flex flex-col">
+                            <SheetHeader className="p-4 border-b border-orange-900/10 shrink-0">
+                                <SheetTitle className="text-neutral-900 text-center">Comments</SheetTitle>
                             </SheetHeader>
 
                             {/* Scrollable Comment List */}
                             <ScrollArea className="flex-1 p-4">
                                 {loadingComments ? (
                                     <div className="flex justify-center p-8">
-                                        <Loader2 className="w-6 h-6 animate-spin text-white/40" />
+                                        <Loader2 className="w-6 h-6 animate-spin text-neutral-900/40" />
                                     </div>
                                 ) : comments.length === 0 ? (
-                                    <div className="text-center text-white/30 py-10 text-sm">No comments yet.</div>
+                                    <div className="text-center text-neutral-900/30 py-10 text-sm">No comments yet.</div>
                                 ) : (
                                     <div className="space-y-6 pb-4">
                                         {rootComments.map((comment) => {
@@ -572,7 +572,7 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
 
                                                     {/* All Descendants (Indented) */}
                                                     {descendants.length > 0 && (
-                                                        <div className="ml-11 border-l-2 border-white/5 pl-3 mt-3 space-y-3">
+                                                        <div className="ml-11 border-l-2 border-orange-900/10 pl-3 mt-3 space-y-3">
                                                             {descendants.map(reply => (
                                                                 <div key={reply.id}>
                                                                     <CommentItem comment={reply} isReply />
@@ -588,18 +588,18 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
                             </ScrollArea>
 
                             {/* Input Area (Sticky Bottom) */}
-                            <div className="p-4 bg-zinc-900 border-t border-white/10 shrink-0 pb-8">
+                            <div className="p-4 bg-white border-t border-orange-900/10 shrink-0 pb-8">
                                 {replyingTo && (
-                                    <div className="flex justify-between items-center mb-2 px-3 py-2 bg-white/5 rounded-xl border border-white/5">
+                                    <div className="flex justify-between items-center mb-2 px-3 py-2 bg-orange-50 rounded-xl border border-orange-900/10">
                                         <div className="flex items-center gap-2">
-                                            <div className="h-1 w-1 rounded-full bg-fuchsia-500" />
-                                            <span className="text-xs text-white/60">Replying to <span className="text-white font-bold">{replyingTo.userName}</span></span>
+                                            <div className="h-1 w-1 rounded-full bg-[#E4602F]" />
+                                            <span className="text-xs text-neutral-900/60">Replying to <span className="text-neutral-900 font-bold">{replyingTo.userName}</span></span>
                                         </div>
                                         <button
                                             onClick={() => setReplyingTo(null)}
-                                            className="p-1 hover:bg-white/10 rounded-full transition-colors"
+                                            className="p-1 hover:bg-orange-50 rounded-full transition-colors"
                                         >
-                                            <X className="w-3.5 h-3.5 text-white/50" />
+                                            <X className="w-3.5 h-3.5 text-neutral-900/50" />
                                         </button>
                                     </div>
                                 )}
@@ -609,13 +609,13 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
                                         value={commentText}
                                         onChange={(e) => setCommentText(e.target.value)}
                                         placeholder={replyingTo ? `Reply to ${replyingTo.userName}...` : "Add a comment..."}
-                                        className="bg-zinc-800 border-white/10 text-white rounded-2xl h-11 focus-visible:ring-fuchsia-500/50"
+                                        className="bg-orange-50 border-orange-900/10 text-neutral-900 rounded-2xl h-11 focus-visible:ring-[#E4602F]/50"
                                     />
                                     <Button
                                         type="submit"
                                         size="icon"
                                         disabled={submittingComment || !commentText.trim()}
-                                        className="bg-fuchsia-600 hover:bg-fuchsia-700 rounded-xl h-11 w-11 shrink-0"
+                                        className="bg-[linear-gradient(135deg,#EC8230,#DB3C3F)] hover:brightness-110 rounded-xl h-11 w-11 shrink-0"
                                     >
                                         {submittingComment ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                                     </Button>
@@ -626,7 +626,7 @@ export function FeedItem({ post, currentUserId, onDelete }: FeedItemProps) {
 
                     <button
                         onClick={handleShare}
-                        className="flex items-center gap-2 text-white/60 hover:text-green-400 transition-colors"
+                        className="flex items-center gap-2 text-neutral-900/60 hover:text-green-400 transition-colors"
                     >
                         <Share2 className="w-5 h-5" />
                         <span className="text-xs font-medium">Share</span>

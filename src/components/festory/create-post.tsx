@@ -106,10 +106,10 @@ export function CreatePost({ userImage, userName }: CreatePostProps) {
     };
 
     return (
-        <div className="bg-zinc-900 rounded-3xl p-5 border border-white/5 shadow-xl mb-6">
+        <div className="bg-white rounded-3xl p-5 border border-orange-900/10 shadow-xl mb-6">
             <form ref={formRef} action={formAction}>
                 <div className="flex gap-4 mb-4">
-                    <Avatar className="h-10 w-10 border border-white/10 shrink-0">
+                    <Avatar className="h-10 w-10 border border-orange-900/10 shrink-0">
                         <AvatarImage src={userImage} className="object-cover" />
                         <AvatarFallback className="text-xs">{userName?.slice(0, 2).toUpperCase() || "ME"}</AvatarFallback>
                     </Avatar>
@@ -120,7 +120,7 @@ export function CreatePost({ userImage, userName }: CreatePostProps) {
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
                             placeholder={isPollMode ? "Ask a question..." : selectedImage ? "Add a caption..." : audioBlob ? "Describe this audio..." : "Drop your vibe here..."}
-                            className="w-full bg-transparent border-none text-white placeholder:text-white/30 text-base focus:ring-0 focus:outline-none py-2"
+                            className="w-full bg-transparent border-none text-neutral-900 placeholder:text-neutral-900/30 text-base focus:ring-0 focus:outline-none py-2"
                             autoComplete="off"
                             required={!selectedImage && !audioBlob}
                         />
@@ -142,14 +142,14 @@ export function CreatePost({ userImage, userName }: CreatePostProps) {
                                                 }
                                             }}
                                             placeholder={`Option ${idx + 1}`}
-                                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-white/20"
+                                            className="flex-1 bg-orange-50 border border-orange-900/10 rounded-xl px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:border-orange-900/10"
                                             required={isPollMode}
                                         />
                                         {pollOptions.length > 2 && (
                                             <button
                                                 type="button"
                                                 onClick={() => removePollOption(idx)}
-                                                className="p-2 text-white/40 hover:text-red-400"
+                                                className="p-2 text-neutral-900/40 hover:text-red-400"
                                             >
                                                 <X className="w-4 h-4" />
                                             </button>
@@ -160,7 +160,7 @@ export function CreatePost({ userImage, userName }: CreatePostProps) {
                                     <button
                                         type="button"
                                         onClick={addPollOption}
-                                        className="text-xs text-fuchsia-400 hover:text-fuchsia-300 font-medium px-1"
+                                        className="text-xs text-[#E4602F] hover:text-fuchsia-300 font-medium px-1"
                                     >
                                         + Add Option
                                     </button>
@@ -172,7 +172,7 @@ export function CreatePost({ userImage, userName }: CreatePostProps) {
 
                 {/* Previews */}
                 {selectedImage && (
-                    <div className="mb-4 relative w-full h-48 rounded-2xl overflow-hidden border border-white/10 bg-black/50">
+                    <div className="mb-4 relative w-full h-48 rounded-2xl overflow-hidden border border-orange-900/10 bg-orange-50">
                         <Image src={selectedImage} alt="Preview" fill className="object-cover" />
                         <button
                             type="button"
@@ -180,15 +180,15 @@ export function CreatePost({ userImage, userName }: CreatePostProps) {
                                 setSelectedImage(null);
                                 if (fileInputRef.current) fileInputRef.current.value = "";
                             }}
-                            className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5 hover:bg-red-500/80 transition-colors"
+                            className="absolute top-2 right-2 bg-white/60 rounded-full p-1.5 hover:bg-red-500/80 transition-colors"
                         >
-                            <X className="w-4 h-4 text-white" />
+                            <X className="w-4 h-4 text-neutral-900" />
                         </button>
                     </div>
                 )}
 
 
-                <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                <div className="flex justify-between items-center pt-2 border-t border-orange-900/10">
                     <div className="flex items-center gap-2">
                         <input
                             ref={fileInputRef}
@@ -204,7 +204,7 @@ export function CreatePost({ userImage, userName }: CreatePostProps) {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className={`h-9 w-9 rounded-full transition-colors ${selectedImage ? 'text-fuchsia-400 bg-fuchsia-500/10' : 'text-blue-400 bg-blue-500/10 hover:bg-blue-500/20'}`}
+                                className={`h-9 w-9 rounded-full transition-colors ${selectedImage ? 'text-[#E4602F] bg-[#E4602F]/10' : 'text-blue-400 bg-blue-500/10 hover:bg-blue-500/20'}`}
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={!!audioBlob}
                             >
@@ -268,8 +268,8 @@ function SubmitButton({ isValid }: { isValid: boolean }) {
             disabled={disabled}
             size="icon"
             className={`h-9 w-9 rounded-full transition-colors bg-transparent ${disabled
-                ? "text-white/20"
-                : "text-fuchsia-500 hover:text-fuchsia-400"
+                ? "text-neutral-900/20"
+                : "text-[#E4602F] hover:text-[#E4602F]"
                 }`}
         >
             {pending ? (

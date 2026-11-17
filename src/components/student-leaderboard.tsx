@@ -112,12 +112,12 @@ export function StudentLeaderboard({ students, teams }: StudentLeaderboardProps)
             <div className="relative max-w-lg mx-auto px-4 z-10">
                 <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Search className="h-5 w-5 text-gray-400 group-focus-within:text-[#8B4513] transition-colors" />
+                        <Search className="h-5 w-5 text-gray-400 group-focus-within:text-[#C72F36] transition-colors" />
                     </div>
                     <input
                         type="text"
                         placeholder="Search student, chest no..."
-                        className="block w-full pl-11 pr-4 py-3.5 bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl text-sm shadow-sm focus:ring-2 focus:ring-[#8B4513]/20 focus:border-[#8B4513] transition-all"
+                        className="block w-full pl-11 pr-4 py-3.5 bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl text-sm shadow-sm focus:ring-2 focus:ring-[#C72F36]/20 focus:border-[#C72F36] transition-all"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
@@ -314,7 +314,7 @@ export function StudentLeaderboard({ students, teams }: StudentLeaderboardProps)
 
                                     {/* Details */}
                                     <div className="flex-grow min-w-0">
-                                        <h4 className="font-bold text-gray-900 text-sm md:text-base group-hover:text-[#8B4513] transition-colors leading-tight">
+                                        <h4 className="font-bold text-gray-900 text-sm md:text-base group-hover:text-[#C72F36] transition-colors leading-tight">
                                             {student.name}
                                         </h4>
                                         <div className="flex items-center gap-2 mt-1 flex-wrap">
