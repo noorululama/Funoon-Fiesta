@@ -293,8 +293,11 @@ export async function generateResultPoster(
     ctx.font = `${pConfig.fontWeight || "normal"} ${fontSize}px ${pConfig.fontFamily || "sans-serif"}`;
 
     const maxWidth = (pConfig.maxWidth || 940) * scaleX;
-    const displayProgram = truncateText(ctx, data.programName || "Program Name", maxWidth);
-    ctx.fillText(displayProgram, posX, posY);
+    const programLines = wrapText(ctx, (data.programName || "Program Name").toLocaleUpperCase(), maxWidth);
+    const lineHeight = fontSize * 1.15;
+    programLines.forEach((line, index) => {
+      ctx.fillText(line, posX, posY + (index - (programLines.length - 1) / 2) * lineHeight);
+    });
   }
 
   // 4. Section / Category
@@ -316,7 +319,7 @@ export async function generateResultPoster(
       : "General";
 
     const maxWidth = (sConfig.maxWidth || 940) * scaleX;
-    const displaySection = truncateText(ctx, sectionLabel, maxWidth);
+    const displaySection = truncateText(ctx, sectionLabel.toLocaleUpperCase(), maxWidth);
     ctx.fillText(displaySection, posX, posY);
   }
 
@@ -336,7 +339,7 @@ export async function generateResultPoster(
       const slot = slotMap[prize.position];
       if (!slot) return;
 
-      const name = prize.studentName || prize.teamName || "—";
+      const name = (prize.studentName || prize.teamName || "—").toLocaleUpperCase();
       const posX = slot.x * scaleX;
       const posY = slot.y * scaleY;
       // Draw winner name
@@ -365,7 +368,7 @@ export async function generateResultPoster(
         ctx.fillStyle = slots.teamColor || "#555555";
         ctx.font = `${teamFontSize}px ${slots.teamFontFamily || "'Arial', sans-serif"}`;
         const teamY = posY + Math.max((slots.teamOffsetY || 50) * scaleY, nameLines.length * lineHeight / 2 + 8 * scaleY);
-        ctx.fillText(prize.teamName, posX, teamY);
+        ctx.fillText(prize.teamName.toLocaleUpperCase(), posX, teamY);
       }
     });
   } else {
@@ -388,7 +391,7 @@ export async function generateResultPoster(
 
     let nextPrizeY = stacked.startY * scaleY;
     sortedPrizes.forEach((prize) => {
-      const name = prize.studentName || prize.teamName || "—";
+      const name = (prize.studentName || prize.teamName || "—").toLocaleUpperCase();
       const nameX = stacked.startX * scaleX;
       const nameY = nextPrizeY;
 
@@ -418,7 +421,7 @@ export async function generateResultPoster(
         const teamFontSize = (stacked.teamFontSize || 32) * scaleY;
         ctx.fillStyle = stacked.teamColor || "#555555";
         ctx.font = `${teamFontSize}px ${stacked.teamFontFamily || "'Arial', sans-serif"}`;
-        const displayTeam = truncateText(ctx, team, maxNameWidth);
+        const displayTeam = truncateText(ctx, team.toLocaleUpperCase(), maxNameWidth);
         const teamY = nameY + nameLines.length * lineHeight / 2 + (stacked.teamOffsetY || 50) * scaleY;
         ctx.fillText(displayTeam, nameX, teamY);
       }
