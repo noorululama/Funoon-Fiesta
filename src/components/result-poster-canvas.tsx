@@ -128,6 +128,25 @@ function truncateText(
   return truncated + "...";
 }
 
+/** Reduce the font size when needed so names remain complete on the poster. */
+function fitFontSize(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  fontSize: number,
+  minFontSize: number,
+  maxWidth: number,
+  font: (size: number) => string
+): number {
+  let fittedSize = fontSize;
+  while (fittedSize > minFontSize) {
+    ctx.font = font(fittedSize);
+    if (ctx.measureText(text).width <= maxWidth) break;
+    fittedSize = Math.max(minFontSize, fittedSize - 1);
+  }
+  ctx.font = font(fittedSize);
+  return fittedSize;
+}
+
 /**
  * Generate a high-quality poster canvas image for the result
  * @param data Poster data (program, section, prizes)
@@ -254,16 +273,18 @@ export async function generateResultPoster(
       const teamY = posY + (slots.teamOffsetY || 50) * scaleY;
 
       // Draw winner name
-      const nameFontSize = (slots.nameFontSize || 48) * scaleY;
+      let nameFontSize = (slots.nameFontSize || 48) * scaleY;
       ctx.fillStyle = slots.nameColor || "#000000";
       ctx.textAlign = slots.align || "left";
       ctx.textBaseline = "middle";
-      ctx.font = `bold ${nameFontSize}px ${slots.nameFontFamily || "'Arial', sans-serif"}`;
+      const nameFont = (size: number) => `bold ${size}px ${slots.nameFontFamily || "'Arial', sans-serif"}`;
 
       let displayName = name;
       if (slot.showChestNo && prize.chestNumber) {
         displayName += ` (#${prize.chestNumber})`;
       }
+      const slotMaxWidth = Math.max(1, imageWidth - posX - 80 * scaleX);
+      nameFontSize = fitFontSize(ctx, displayName, nameFontSize, 12 * scaleY, slotMaxWidth, nameFont);
       ctx.fillText(displayName, posX, posY);
 
       // Draw team name
@@ -299,18 +320,18 @@ export async function generateResultPoster(
       const teamY = nameY + (stacked.teamOffsetY || 50) * scaleY;
 
       // Draw student / winner name
-      const nameFontSize = (stacked.nameFontSize || 48) * scaleY;
+      let nameFontSize = (stacked.nameFontSize || 48) * scaleY;
       ctx.fillStyle = stacked.nameColor || "#000000";
       ctx.textAlign = stacked.align || "left";
       ctx.textBaseline = "middle";
-      ctx.font = `bold ${nameFontSize}px ${stacked.nameFontFamily || "'Arial', sans-serif"}`;
+      const nameFont = (size: number) => `bold ${size}px ${stacked.nameFontFamily || "'Arial', sans-serif"}`;
 
       const maxNameWidth = (stacked.maxWidth || 720) * scaleX;
       let displayName = name;
       if (stacked.showChestNo && prize.chestNumber) {
         displayName += ` (#${prize.chestNumber})`;
       }
-      displayName = truncateText(ctx, displayName, maxNameWidth);
+      nameFontSize = fitFontSize(ctx, displayName, nameFontSize, 12 * scaleY, maxNameWidth, nameFont);
       ctx.fillText(displayName, nameX, nameY);
 
       // Draw team name if available

@@ -19,7 +19,7 @@ export function HomeEngagementSection() {
                 <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
 
                     {/* Text Content */}
-                    <div className="flex-1 text-center lg:text-left space-y-6">
+                    <div className="flex-1 text-center lg:text-left space-y-6 ">
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
