@@ -128,23 +128,92 @@ function truncateText(
   return truncated + "...";
 }
 
-/** Reduce the font size when needed so names remain complete on the poster. */
-function fitFontSize(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  fontSize: number,
-  minFontSize: number,
-  maxWidth: number,
-  font: (size: number) => string
-): number {
-  let fittedSize = fontSize;
-  while (fittedSize > minFontSize) {
-    ctx.font = font(fittedSize);
-    if (ctx.measureText(text).width <= maxWidth) break;
-    fittedSize = Math.max(minFontSize, fittedSize - 1);
+/** Wrap at spaces, splitting unusually long words without adding hyphens. */
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.trim().split(/\s+/).filter(Boolean)) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      line = candidate;
+      continue;
+    }
+    if (line) lines.push(line);
+    line = "";
+    for (const character of word) {
+      if (line && ctx.measureText(line + character).width > maxWidth) {
+        lines.push(line);
+        line = character;
+      } else line += character;
+    }
   }
-  ctx.font = font(fittedSize);
-  return fittedSize;
+  if (line) lines.push(line);
+  return lines.length ? lines : [""];
+}
+
+function drawPrizeBadge(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  position: PrizeEntry["position"],
+  radius: number
+) {
+  const colors: Record<PrizeEntry["position"], { main: string; light: string; dark: string }> = {
+    1: { main: "#e0ad24", light: "#fff0a6", dark: "#8e5d08" },
+    2: { main: "#aeb8c4", light: "#f5f8fc", dark: "#56616f" },
+    3: { main: "#c47a45", light: "#ffd0a1", dark: "#713716" },
+  };
+  const palette = colors[position];
+  ctx.save();
+  // Short ribbon tails behind the medal.
+  ctx.fillStyle = palette.dark;
+  ctx.beginPath();
+  ctx.moveTo(x - radius * 0.56, y + radius * 0.5);
+  ctx.lineTo(x - radius * 0.95, y + radius * 1.55);
+  ctx.lineTo(x - radius * 0.18, y + radius * 1.28);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = palette.main;
+  ctx.beginPath();
+  ctx.moveTo(x + radius * 0.56, y + radius * 0.5);
+  ctx.lineTo(x + radius * 0.95, y + radius * 1.55);
+  ctx.lineTo(x + radius * 0.18, y + radius * 1.28);
+  ctx.closePath();
+  ctx.fill();
+
+  // Layered medal rim and center.
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = palette.dark;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x, y, radius * 0.86, 0, Math.PI * 2);
+  ctx.fillStyle = palette.main;
+  ctx.fill();
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+  ctx.strokeStyle = palette.light;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x - radius * 0.22, y - radius * 0.25, radius * 0.48, Math.PI, Math.PI * 1.62);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+  ctx.lineWidth = Math.max(1, radius * 0.09);
+  ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `900 ${radius * 1.08}px Arial, sans-serif`;
+  ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+  ctx.shadowBlur = radius * 0.12;
+  ctx.shadowOffsetY = radius * 0.05;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(position), x, y - radius * 0.03);
+  ctx.restore();
+}
+
+function textLineStartX(ctx: CanvasRenderingContext2D, anchorX: number, line: string): number {
+  const width = ctx.measureText(line).width;
+  if (ctx.textAlign === "center") return anchorX - width / 2;
+  if (ctx.textAlign === "right" || ctx.textAlign === "end") return anchorX - width;
+  return anchorX;
 }
 
 /**
@@ -270,28 +339,32 @@ export async function generateResultPoster(
       const name = prize.studentName || prize.teamName || "—";
       const posX = slot.x * scaleX;
       const posY = slot.y * scaleY;
-      const teamY = posY + (slots.teamOffsetY || 50) * scaleY;
-
       // Draw winner name
-      let nameFontSize = (slots.nameFontSize || 48) * scaleY;
+      const nameFontSize = (slots.nameFontSize || 48) * scaleY;
       ctx.fillStyle = slots.nameColor || "#000000";
       ctx.textAlign = slots.align || "left";
       ctx.textBaseline = "middle";
-      const nameFont = (size: number) => `bold ${size}px ${slots.nameFontFamily || "'Arial', sans-serif"}`;
+      ctx.font = `bold ${nameFontSize}px ${slots.nameFontFamily || "'Arial', sans-serif"}`;
 
       let displayName = name;
       if (slot.showChestNo && prize.chestNumber) {
         displayName += ` (#${prize.chestNumber})`;
       }
       const slotMaxWidth = Math.max(1, imageWidth - posX - 80 * scaleX);
-      nameFontSize = fitFontSize(ctx, displayName, nameFontSize, 12 * scaleY, slotMaxWidth, nameFont);
-      ctx.fillText(displayName, posX, posY);
+      const nameLines = wrapText(ctx, displayName, slotMaxWidth);
+      const lineHeight = nameFontSize * 1.15;
+      const firstLineY = posY - (nameLines.length - 1) * lineHeight / 2;
+      const badgeRadius = 38 * scaleY;
+      const badgeX = textLineStartX(ctx, posX, nameLines[0]) - (badgeRadius + 36 * scaleX);
+      drawPrizeBadge(ctx, badgeX, firstLineY, prize.position, badgeRadius);
+      nameLines.forEach((line, index) => ctx.fillText(line, posX, posY + (index - (nameLines.length - 1) / 2) * lineHeight));
 
       // Draw team name
       if (prize.teamName && prize.studentName) {
         const teamFontSize = (slots.teamFontSize || 32) * scaleY;
         ctx.fillStyle = slots.teamColor || "#555555";
         ctx.font = `${teamFontSize}px ${slots.teamFontFamily || "'Arial', sans-serif"}`;
+        const teamY = posY + Math.max((slots.teamOffsetY || 50) * scaleY, nameLines.length * lineHeight / 2 + 8 * scaleY);
         ctx.fillText(prize.teamName, posX, teamY);
       }
     });
@@ -313,26 +386,31 @@ export async function generateResultPoster(
       maxWidth: 720,
     };
 
-    sortedPrizes.forEach((prize, index) => {
+    let nextPrizeY = stacked.startY * scaleY;
+    sortedPrizes.forEach((prize) => {
       const name = prize.studentName || prize.teamName || "—";
       const nameX = stacked.startX * scaleX;
-      const nameY = (stacked.startY + index * stacked.spacingY) * scaleY;
-      const teamY = nameY + (stacked.teamOffsetY || 50) * scaleY;
+      const nameY = nextPrizeY;
 
       // Draw student / winner name
-      let nameFontSize = (stacked.nameFontSize || 48) * scaleY;
+      const nameFontSize = (stacked.nameFontSize || 48) * scaleY;
       ctx.fillStyle = stacked.nameColor || "#000000";
       ctx.textAlign = stacked.align || "left";
       ctx.textBaseline = "middle";
-      const nameFont = (size: number) => `bold ${size}px ${stacked.nameFontFamily || "'Arial', sans-serif"}`;
+      ctx.font = `bold ${nameFontSize}px ${stacked.nameFontFamily || "'Arial', sans-serif"}`;
 
       const maxNameWidth = (stacked.maxWidth || 720) * scaleX;
       let displayName = name;
       if (stacked.showChestNo && prize.chestNumber) {
         displayName += ` (#${prize.chestNumber})`;
       }
-      nameFontSize = fitFontSize(ctx, displayName, nameFontSize, 12 * scaleY, maxNameWidth, nameFont);
-      ctx.fillText(displayName, nameX, nameY);
+      const nameLines = wrapText(ctx, displayName, maxNameWidth);
+      const lineHeight = nameFontSize * 1.15;
+      const firstLineY = nameY - (nameLines.length - 1) * lineHeight / 2;
+      const badgeRadius = 38 * scaleY;
+      const badgeX = textLineStartX(ctx, nameX, nameLines[0]) - (badgeRadius + 36 * scaleX);
+      drawPrizeBadge(ctx, badgeX, firstLineY, prize.position, badgeRadius);
+      nameLines.forEach((line, lineIndex) => ctx.fillText(line, nameX, nameY + (lineIndex - (nameLines.length - 1) / 2) * lineHeight));
 
       // Draw team name if available
       const team = prize.teamName;
@@ -341,8 +419,13 @@ export async function generateResultPoster(
         ctx.fillStyle = stacked.teamColor || "#555555";
         ctx.font = `${teamFontSize}px ${stacked.teamFontFamily || "'Arial', sans-serif"}`;
         const displayTeam = truncateText(ctx, team, maxNameWidth);
+        const teamY = nameY + nameLines.length * lineHeight / 2 + (stacked.teamOffsetY || 50) * scaleY;
         ctx.fillText(displayTeam, nameX, teamY);
       }
+      const teamHeight = prize.teamName && prize.studentName
+        ? (stacked.teamOffsetY || 50) * scaleY + (stacked.teamFontSize || 32) * scaleY
+        : 0;
+      nextPrizeY += Math.max((stacked.spacingY || 120) * scaleY, nameLines.length * lineHeight + teamHeight);
     });
   }
 
