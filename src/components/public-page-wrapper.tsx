@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
 import { VerticalNavSidebar } from "./vertical-nav-sidebar";
 import { NotificationProvider } from "./notification-provider";
+import { WalkingRobot } from "./walking-robot";
 
 interface PublicPageWrapperProps {
   children: ReactNode;
@@ -32,6 +33,7 @@ export function PublicPageWrapper({ children }: PublicPageWrapperProps) {
           </div>
         )}
         {children}
+        <WalkingRobot />
       </div>
     );
   }
