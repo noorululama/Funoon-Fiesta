@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { NotificationProvider } from "@/components/notification-provider";
 import { CountUp, type FestStat } from "@/components/StatsTapeSection";
@@ -38,7 +39,17 @@ interface FestPageHeroProps {
 
 export function FestPageHero({ eyebrow, title, subtitle, stats = [], children }: FestPageHeroProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const hasStats = stats.length > 0;
+
+  // Go to the previous page; if the visitor landed here directly, go home instead
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push("/");
+    }
+  };
 
   return (
     <section
@@ -59,7 +70,7 @@ export function FestPageHero({ eyebrow, title, subtitle, stats = [], children }:
 
           {/* Navigation: centred white links on desktop, logo chip on phones */}
           <nav aria-label="Main" className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-5 pt-5 sm:px-8 sm:pt-7 lg:justify-center lg:pt-[clamp(2.2rem,3.6vw,3rem)]">
-            <Link href="/" aria-label="Funoon Fiesta home" className="relative block h-11 w-11 shrink-0 rounded-full bg-white p-1.5 shadow-md sm:h-12 sm:w-12 lg:hidden">
+            <Link href="/" aria-label="Funoon Fiesta home" className="relative ml-14 block h-11 w-11 shrink-0 rounded-full bg-white p-1.5 shadow-md sm:ml-16 sm:h-12 sm:w-12 lg:hidden">
               <Image src="/img/brand-logo-transparent.png" alt="Funoon Fiesta" fill priority sizes="48px" className="object-contain p-1.5" />
             </Link>
             <ul className="hidden items-center gap-[clamp(1.6rem,3.4vw,3rem)] lg:flex">
@@ -83,6 +94,17 @@ export function FestPageHero({ eyebrow, title, subtitle, stats = [], children }:
               })}
             </ul>
           </nav>
+
+          {/* Back button (top-left corner) */}
+          <button
+            type="button"
+            onClick={handleBack}
+            aria-label="Go back"
+            title="Back"
+            className="absolute left-5 top-5 z-40 flex h-11 w-11 items-center justify-center text-white transition hover:opacity-80 active:scale-95 sm:left-8 sm:top-7 sm:h-12 sm:w-12 lg:left-[clamp(2rem,6vw,6.5rem)] lg:top-[clamp(1.9rem,3.2vw,2.6rem)]"
+          >
+            <ArrowLeft className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={2.4} />
+          </button>
 
           {/* Notification bell */}
           <div className="absolute right-4 top-5 z-40 sm:right-8 sm:top-7 lg:right-[clamp(2rem,6vw,6.5rem)] lg:top-[clamp(1.9rem,3.2vw,2.6rem)]">
