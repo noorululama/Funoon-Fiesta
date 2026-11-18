@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Ai3dHuman, type HumanState } from "@/components/ai-3d-human";
+import { VoiceRecorder, canRecordAudio, hasSpeechRecognition, isIOSDevice } from "@/lib/voice-recorder";
 
 // 44-byte silent clip used to unlock audio playback on phones after the first tap.
 // Never leave the host "thinking" forever: give up on a request that gets no response in 25s.
@@ -530,6 +531,7 @@ export default function ChatbotClient() {
         if (err === "language-not-supported" && recognition.lang !== "en-IN") {
           // iPhones often cannot recognise Malayalam: carry on in Indian English.
           recLangRef.current = "en-IN";
+          langRetryRef.current = true; // onend restarts in English instead of closing
           setVoiceInputNotice("Malayalam voice input isn't available on this phone, so I'm listening in English instead.");
           return;
         }
@@ -549,6 +551,11 @@ export default function ChatbotClient() {
         setIsListening(false);
         if (!liveModeRef.current) {
           setHumanState((current) => (current === "listening" ? "idle" : current));
+          return;
+        }
+        if (langRetryRef.current) {
+          langRetryRef.current = false;
+          startRecognition();
           return;
         }
         if (currentTranscriptRef.current.trim()) sendSpoken();
@@ -596,8 +603,115 @@ export default function ChatbotClient() {
     [],
   );
 
+  // ───────── iPhone / no-Web-Speech voice input ─────────
+  // iOS Safari's speech recognition fails in the home-screen app, in Chrome/in-app
+  // browsers, with Siri & Dictation off, and for Malayalam. There we record the
+  // question ourselves and transcribe it on the server (/api/transcribe).
+  const langRetryRef = useRef(false);
+  const voiceRecorderRef = useRef<VoiceRecorder | null>(null);
+  const recorderModeRef = useRef<boolean | null>(null);
+  const transcribingRef = useRef(false);
+  const useRecorderInput = () => {
+    if (recorderModeRef.current === null) {
+      recorderModeRef.current = canRecordAudio() && (isIOSDevice() || !hasSpeechRecognition());
+    }
+    return recorderModeRef.current;
+  };
+
+  const finishRecording = async () => {
+    const recorder = voiceRecorderRef.current;
+    if (!recorder || transcribingRef.current) return;
+    transcribingRef.current = true;
+    setIsListening(false);
+    const wav = await recorder.stop();
+    if (!wav) {
+      transcribingRef.current = false;
+      setHumanState((current) => (current === "listening" ? "idle" : current));
+      setVoiceInputNotice("I didn't hear anything. Tap the microphone and ask again, a little closer to the phone.");
+      return;
+    }
+    setHumanState("thinking");
+    setVoiceInputNotice("Got it, understanding your question…");
+    let text = "";
+    try {
+      const res = await fetch("/api/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "audio/wav", "X-Voice-Lang": activeTabRef.current === "character" ? "ml" : "en" },
+        body: wav,
+      });
+      const data = await res.json().catch(() => ({}));
+      text = typeof data?.text === "string" ? data.text.trim() : "";
+      if (!res.ok && !text) throw new Error(data?.error || "transcribe failed");
+    } catch (e) {
+      console.error("Transcription error:", e);
+      transcribingRef.current = false;
+      setHumanState("idle");
+      setVoiceInputNotice("Voice input isn't available right now. Please try again or use Text chat.");
+      return;
+    }
+    transcribingRef.current = false;
+    if (!text) {
+      setHumanState("idle");
+      setVoiceInputNotice("Sorry, I couldn't catch that. Tap the microphone and try again.");
+      return;
+    }
+    setVoiceInputNotice(null);
+    if (activeTabRef.current === "character") handleSendCharacterQuery(text);
+    else handleSendMessage(text);
+  };
+  const finishRecordingRef = useRef(finishRecording);
+  finishRecordingRef.current = finishRecording;
+
+  const startRecording = async () => {
+    if (!voiceRecorderRef.current) voiceRecorderRef.current = new VoiceRecorder();
+    setVoiceInputNotice(null);
+    stopSpeaking();
+    if (activeTab === "character") setInput("");
+    try {
+      await voiceRecorderRef.current.start({ onAutoStop: () => finishRecordingRef.current() });
+      setIsListening(true);
+      setHumanState("listening");
+    } catch (e: any) {
+      console.error("Microphone error:", e);
+      setIsListening(false);
+      setHumanState("idle");
+      setVoiceInputNotice(
+        e?.name === "NotAllowedError" || e?.name === "SecurityError"
+          ? "Microphone is blocked. On iPhone: Settings → Safari → Microphone → Allow (or tap “aA” in the address bar → Website Settings → Microphone → Allow), then tap the microphone again."
+          : "Couldn't open the microphone. Close other apps using it and try again.",
+      );
+    }
+  };
+
+  useEffect(() => () => voiceRecorderRef.current?.cancel(), []);
+  useEffect(() => {
+    // Switching tabs cancels a recording in progress.
+    if (voiceRecorderRef.current?.isActive) {
+      voiceRecorderRef.current.cancel();
+      setIsListening(false);
+      setHumanState((current) => (current === "listening" ? "idle" : current));
+    }
+  }, [activeTab]);
+
   const toggleListening = () => {
     unlockAudio();
+
+    if (useRecorderInput()) {
+      if (voiceRecorderRef.current?.isActive) {
+        // Tapped while listening: send now.
+        void finishRecording();
+        return;
+      }
+      if (transcribingRef.current) return;
+      if (isSpeakingRef.current || ttsPlayingRef.current) {
+        // Tapped while the host is talking: interrupt and listen.
+        stopSpeaking();
+      } else if (isLoading) {
+        return;
+      }
+      void startRecording();
+      return;
+    }
 
     if (liveModeRef.current) {
       if (isListeningRef.current) {
