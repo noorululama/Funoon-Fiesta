@@ -24,6 +24,7 @@ interface ResultManagerProps {
 }
 
 type SortOption = "latest" | "program" | "jury" | "score";
+type ProgramTypeFilter = "all" | "stage" | "non-stage" | "general";
 
 const pageSizeOptions = [
   { label: "8 / page", value: "8" },
@@ -61,13 +62,14 @@ export const ResultManager = React.memo(function ResultManager({
   const [programFilter, setProgramFilter] = useState("");
   const [juryFilter, setJuryFilter] = useState("");
   const [sort, setSort] = useState<SortOption>("latest");
+  const [programTypeFilter, setProgramTypeFilter] = useState<ProgramTypeFilter>("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(Number(pageSizeOptions[0].value));
   const [viewResult, setViewResult] = useState<ResultRecord | null>(null);
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearchQuery, programFilter, juryFilter, sort]);
+  }, [debouncedSearchQuery, programFilter, juryFilter, sort, programTypeFilter]);
 
   const filteredResults = useMemo(() => {
     return results.filter((result) => {
@@ -81,10 +83,14 @@ export const ResultManager = React.memo(function ResultManager({
         result.id.toLowerCase().includes(query);
       const matchesProgram = programFilter ? result.program_id === programFilter : true;
       const matchesJury = juryFilter ? result.jury_id === juryFilter : true;
+      const matchesProgramType = programTypeFilter === "all"
+        || (programTypeFilter === "general" && program?.section === "general")
+        || (programTypeFilter === "stage" && program?.section !== "general" && program?.stage === true)
+        || (programTypeFilter === "non-stage" && program?.section !== "general" && program?.stage === false);
 
-      return matchesSearch && matchesProgram && matchesJury;
+      return matchesSearch && matchesProgram && matchesJury && matchesProgramType;
     });
-  }, [results, debouncedSearchQuery, programFilter, juryFilter, programMap, juryMap]);
+  }, [results, debouncedSearchQuery, programFilter, juryFilter, programTypeFilter, programMap, juryMap]);
 
   const sortedResults = useMemo(() => {
     const list = [...filteredResults];
@@ -238,12 +244,12 @@ export const ResultManager = React.memo(function ResultManager({
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "approved-results.csv");
+      link.setAttribute("download", `${isPending ? "pending" : "approved"}-results.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     }
-  }, [sortedResults, programMap, getPositionName]);
+  }, [sortedResults, programMap, getPositionName, isPending]);
 
   return (
     <div className="space-y-6 rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-[0_20px_60px_rgba(8,47,73,0.35)]">
@@ -279,6 +285,14 @@ export const ResultManager = React.memo(function ResultManager({
         )}
         {isPending && (
           <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleExport("csv")}
+              className="gap-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20"
+            >
+              <Table className="h-4 w-4" /> CSV
+            </Button>
             <Link href="/admin/precalculated-scores">
               <Button
                 variant="secondary"
@@ -383,6 +397,31 @@ export const ResultManager = React.memo(function ResultManager({
           <CheckCircle2 className="h-4 w-4 text-emerald-300" />
           {sortedResults.length} results
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs uppercase tracking-widest text-white/50">Program type</span>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: "All", value: "all" },
+              { label: "Stage", value: "stage" },
+              { label: "Non-stage", value: "non-stage" },
+              { label: "General", value: "general" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setProgramTypeFilter(option.value as ProgramTypeFilter)}
+                aria-pressed={programTypeFilter === option.value}
+                className={`rounded-full px-4 py-1 text-xs font-semibold transition ${programTypeFilter === option.value
+                  ? "bg-fuchsia-500/20 text-fuchsia-200"
+                  : "border border-white/10 text-white/60 hover:text-white"
+                  }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
       </div>
 
       <div className="space-y-3">
