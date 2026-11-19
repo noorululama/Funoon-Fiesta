@@ -85,7 +85,7 @@ export function VerticalNavSidebar() {
   return (
     <>
       {/* Desktop vertical sidebar (hidden on home page to let hero header shine) */}
-      {!isHome && (
+      {!isHome && !pathname?.startsWith("/chatbot") && (
         <aside
           className="hidden lg:flex fixed left-10 top-8 z-50 flex-col items-center"
           onMouseEnter={() => setIsHovered(true)}
